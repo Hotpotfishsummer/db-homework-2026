@@ -1,0 +1,6 @@
+name: db-homework-2026-backend
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
