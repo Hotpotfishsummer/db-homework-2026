@@ -1,0 +1,17 @@
+name: l-wardrobe
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      - fastapi>=0.110.0
+      - uvicorn[standard]>=0.27.0
+      - rembg>=2.0.50
+      - pillow>=10.2.0
+      - python-dotenv>=1.0.0
+      - requests>=2.31.0
+      - pydantic>=2.6.0
+      - pydantic-settings>=2.1.0
+      - python-multipart>=0.0.9
