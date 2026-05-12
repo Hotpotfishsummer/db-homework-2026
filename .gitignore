@@ -13,6 +13,10 @@ backend/*.pyo
 backend/env/
 backend/venv/
 backend/.coverage
+backend/app/static/raw/*
+backend/app/static/processed/*
+!backend/app/static/raw/.gitkeep
+!backend/app/static/processed/.gitkeep
 
 # Python
 *.pyc
@@ -21,6 +25,8 @@ __pycache__/
 *.pyd
 .Python
 *.egg-info/
+dist/
+build/
 
 # IDE
 .idea/
