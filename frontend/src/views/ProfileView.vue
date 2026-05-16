@@ -169,14 +169,15 @@ const bodyTypes = [
 ]
 
 const styleOptions = [
-  { id: 'minimal', label: '静奢极简', desc: 'Less is more' },
-  { id: 'vintage', label: '复古文艺', desc: '时光沉淀' },
-  { id: 'urban', label: '都市通勤', desc: '利落干练' },
-  { id: 'outdoor', label: '户外机能', desc: '自由探索' },
-  { id: 'intellectual', label: '知识分子', desc: '书卷气息' },
-  { id: 'french', label: '慵懒法式', desc: '松弛优雅' },
-  { id: 'avantgarde', label: '前卫先锋', desc: '突破边界' },
-  { id: 'zen', label: '东方禅意', desc: '内敛雅致' }
+  { id: 'old-money', label: 'Old Money 老钱风', desc: '极简、无 Logo、顶级质感' },
+  { id: 'clean-fit', label: 'Clean Fit 极简合身', desc: '干净、合身、没有冗余设计' },
+  { id: 'ivy-style', label: 'Ivy Style 学院风', desc: '斯文、书卷气、精英少年感' },
+  { id: 'intellectual', label: 'Intellectual 智性风', desc: '理性、冷淡、高智感' },
+  { id: 'city-boy', label: 'City Boy 都会少年', desc: 'Oversize、层次叠穿、阳光随性' },
+  { id: 'gorpcore', label: 'Gorpcore 户外山系', desc: '硬核功能性、城市机能' },
+  { id: 'normcore', label: 'Normcore 冷淡极简', desc: '舒适、隐入人群的极致普通' },
+  { id: 'american-vintage', label: 'American Vintage 美式复古', desc: '硬朗、粗犷、岁月沉淀感' },
+  { id: 'vibe-street', label: 'Vibe Street 高街氛围', desc: '上紧下阔、弯刀裤、拉长比例' }
 ]
 
 onMounted(() => {

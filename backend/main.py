@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from app.core.config import get_settings
-from app.api.v1 import garments, user, daily_tips
+from app.api.v1 import garments, user, daily_tips, outfit
 
 settings = get_settings()
 
@@ -15,6 +15,7 @@ app = FastAPI(
 app.include_router(garments.router, prefix="/api/v1")
 app.include_router(user.router, prefix="/api/v1")
 app.include_router(daily_tips.router, prefix="/api/v1")
+app.include_router(outfit.router, prefix="/api/v1")
 
 
 @app.get("/health")
