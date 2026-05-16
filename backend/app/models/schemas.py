@@ -33,6 +33,12 @@ class DailyTipResponse(BaseModel):
 class UserProfile(BaseModel):
     """Schema for user profile."""
     user_id: str
-    display_name: str | None
-    style_preference: str | None
-    location: str | None
+    display_name: str | None = None
+    style_preference: str | None = None
+    location: str | None = None
+
+
+class OutfitRecommendRequest(BaseModel):
+    """Schema for outfit recommendation request."""
+    scene: Literal["commute", "date", "casual", "sports", "party"]
+    wardrobeIds: list[int]

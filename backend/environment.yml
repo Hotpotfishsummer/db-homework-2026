@@ -1,4 +1,4 @@
-name: db-homework-2026-backend
+name: l-wardrobe
 channels:
   - defaults
   - conda-forge
