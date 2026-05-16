@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { uploadAvatar } from '../services/user'
 
 export const useUserStore = defineStore('user', {
   state: () => ({
@@ -22,6 +23,28 @@ export const useUserStore = defineStore('user', {
   actions: {
     updateProfile(data) {
       this.profile = { ...this.profile, ...data }
+      this.persistProfile()
+    },
+
+    async updateAvatar(file) {
+      const res = await uploadAvatar(file)
+      if (res.code === 200) {
+        this.profile.avatar = res.data.url
+        this.persistProfile()
+        return res
+      }
+      throw new Error(res.msg)
+    },
+
+    persistProfile() {
+      localStorage.setItem('user_profile', JSON.stringify(this.profile))
+    },
+
+    loadProfile() {
+      const saved = localStorage.getItem('user_profile')
+      if (saved) {
+        this.profile = { ...this.profile, ...JSON.parse(saved) }
+      }
     },
 
     likeOutfit(outfit) {
