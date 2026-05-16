@@ -4,3 +4,4 @@
 
 export * from './api'
 export * from './outfit'
+export * from './user'
