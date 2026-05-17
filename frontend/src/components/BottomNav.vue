@@ -49,8 +49,7 @@ const handleSheetAction = (type) => {
   if (type === 'add-cloth') {
     router.push('/add-cloth')
   } else if (type === 'ai-match') {
-    // TODO: AI 搭配功能
-    trigger('light')
+    router.push('/outfit-match')
   }
 }
 </script>

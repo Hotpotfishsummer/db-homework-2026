@@ -9,6 +9,7 @@ import ProfileView from '../views/ProfileView.vue'
 import OutfitDetailView from '../views/OutfitDetailView.vue'
 import LikedView from '../views/LikedView.vue'
 import HistoryView from '../views/HistoryView.vue'
+import OutfitMatchView from '../views/OutfitMatchView.vue'
 import AddClothView from '../views/AddClothView.vue'
 
 const router = createRouter({
@@ -68,6 +69,12 @@ const router = createRouter({
       path: '/add-cloth',
       name: 'add-cloth',
       component: AddClothView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/outfit-match',
+      name: 'outfit-match',
+      component: OutfitMatchView,
       meta: { requiresAuth: true }
     }
   ]
