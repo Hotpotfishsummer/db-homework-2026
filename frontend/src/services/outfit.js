@@ -55,22 +55,34 @@ export async function getAIOutfit(scene, wardrobeIds) {
  * @returns {Promise<string>} 推荐理由
  */
 /**
- * Mock: AI 搭配生成服务
- * 模拟后端 AI 接口，返回多套搭配方案
- * @param {Object} params - { scene, weather }
- * @returns {Promise<Object>} { code, data: { outfits[] } }
+ * 是否使用 Mock 数据
+ * 后端就绪后改为 false 即可切换真实接口
  */
-export const generateOutfitService = async (params) => {
+const USE_MOCK = true
+
+/**
+ * AI 搭配生成 —— 统一入口
+ * 当前使用 Mock，切换 USE_MOCK 即可对接后端
+ * @param {Object} params - { scene, weather, wardrobeIds }
+ * @returns {Promise<Object>} { outfits: [...] }
+ */
+export async function generateOutfit(params) {
+  if (USE_MOCK) {
+    return generateOutfitMock(params)
+  }
+  return generateOutfitReal(params)
+}
+
+// ==================== Mock 实现 ====================
+
+async function generateOutfitMock(params) {
   const { scene = 'casual', weather } = params
 
   return new Promise((resolve) => {
     const delay = 2500 + Math.random() * 1000
     setTimeout(() => {
       resolve({
-        code: 200,
-        data: {
-          outfits: generateMockOutfits(scene, weather)
-        }
+        outfits: generateMockOutfits(scene, weather)
       })
     }, delay)
   })
@@ -220,6 +232,30 @@ const partyOutfits = [
     reason: '不对称设计艺术感十足，流苏裙摆动间灵动飘逸，绑带鞋延伸腿部线条，派对女王就是你。'
   }
 ]
+
+// ==================== 真实 API 实现 ====================
+
+async function generateOutfitReal(params) {
+  const { scene, weather, wardrobeIds } = params
+
+  // 调用现有 getAIOutfit，获取单套搭配，包装为数组
+  const data = await getAIOutfit(scene, wardrobeIds)
+
+  // 统一返回 { outfits: [...] } 格式
+  const outfit = {
+    outfitId: data.outfitId || data.id,
+    scene: data.scene || scene,
+    matchRate: data.matchRate || 90,
+    top: data.top,
+    bottom: data.bottom,
+    shoes: data.shoes,
+    accessory: data.accessory,
+    reason: data.reason || '',
+    weatherNote: weather ? `考虑今日${weather.temp}°C天气，${weather.desc}` : ''
+  }
+
+  return { outfits: [outfit] }
+}
 
 export async function getOutfitReason(outfitId) {
   const token = localStorage.getItem('token')

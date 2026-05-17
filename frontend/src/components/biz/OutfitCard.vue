@@ -129,7 +129,7 @@ const resetSwipe = () => {
 .outfit-card {
   background: var(--bg-card);
   border-radius: 24px;
-  padding: 20px;
+  padding: 16px;
   box-shadow: 0 12px 40px var(--shadow-color);
   transition: transform 0.4s ease, opacity 0.4s ease;
   position: relative;
@@ -163,7 +163,7 @@ const resetSwipe = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .scene-badge {
@@ -191,8 +191,8 @@ const resetSwipe = () => {
 .items-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .item-cell {
@@ -204,7 +204,7 @@ const resetSwipe = () => {
 
 .item-image {
   width: 100%;
-  height: 80px;
+  height: 64px;
   border-radius: 10px;
   overflow: hidden;
   margin-bottom: 6px;
@@ -233,9 +233,9 @@ const resetSwipe = () => {
 .ai-reason {
   background: var(--bg-secondary);
   border-radius: 14px;
-  padding: 14px;
+  padding: 10px 14px;
   border-left: 4px solid var(--accent-color);
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .reason-header {
@@ -278,7 +278,7 @@ const resetSwipe = () => {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 12px 20px;
+  padding: 10px 18px;
   border-radius: 14px;
   border: none;
   font-size: 14px;

@@ -125,7 +125,7 @@ const goBack = () => {
 .outfit-match-container {
   min-height: 100vh;
   background: var(--bg-secondary);
-  padding-bottom: 100px;
+  padding-bottom: 140px;
 }
 
 .page-header {

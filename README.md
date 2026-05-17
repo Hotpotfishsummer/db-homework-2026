@@ -51,11 +51,38 @@
 │   └── environment.yml
 └── frontend/
     ├── src/
-    │   ├── views/          # 页面级组件
-    │   ├── components/     # 复用组件
-    │   ├── stores/         # Pinia 状态管理
-    │   ├── services/       # API 客户端
-    │   └── router/         # Vue Router
+    │   ├── views/             # 页面级组件（9 个页面）
+    │   │   ├── HomeView.vue          # AI 推荐首页（滑动卡片）
+    │   │   ├── OutfitMatchView.vue   # AI 搭配专页（输入 → 生成 → 结果）
+    │   │   ├── OutfitDetailView.vue  # 穿搭详情
+    │   │   ├── WardrobeView.vue      # 衣橱管理
+    │   │   ├── ProfileView.vue       # 个人中心
+    │   │   ├── AddClothView.vue      # 录入新单品
+    │   │   ├── LikedView.vue         # 收藏列表
+    │   │   ├── HistoryView.vue       # 浏览历史
+    │   │   ├── LoginView.vue         # 登录
+    │   │   └── RegisterView.vue      # 注册
+    │   ├── components/        # 复用组件
+    │   │   ├── biz/                  # 业务组件（AI 搭配模块）
+    │   │   │   ├── MatchFilter.vue   # 场景/天气选择器
+    │   │   │   ├── AIThinking.vue    # 生成动画组件
+    │   │   │   └── OutfitCard.vue    # 搭配结果卡片
+    │   │   ├── BottomNav.vue         # 底部导航栏
+    │   │   ├── BottomSheet.vue       # 底部弹出菜单
+    │   │   └── ClothingDetail.vue    # 衣服详情弹窗
+    │   ├── stores/            # Pinia 状态管理（5 个模块）
+    │   │   ├── auth.js               # 用户认证
+    │   │   ├── outfit.js             # AI 搭配状态（新增）
+    │   │   ├── wardrobe.js           # 衣橱数据
+    │   │   ├── user.js               # 用户档案/收藏/历史
+    │   │   └── theme.js              # 主题管理
+    │   ├── services/          # API 客户端
+    │   │   ├── api.js                # API 基地址 + 超时配置
+    │   │   ├── outfit.js             # AI 搭配接口（Mock + 真实，USE_MOCK 一键切换）
+    │   │   └── user.js               # 用户头像/档案接口
+    │   ├── composables/       # 组合式函数
+    │   │   └── useHaptics.js         # 触觉反馈
+    │   └── router/            # Vue Router（路由守卫）
     ├── vite.config.js
     └── package.json
 ```
@@ -121,8 +148,8 @@ npm install
 npm run dev
 ```
 
-- 默认端口 5173（Vite）
-- API 基地址：`http://localhost:8080/api`（在 `src/services/api.js` 中配置）
+- 默认端口 5173（Vite）或 8081（vue-cli）
+- API 基地址：`http://localhost:8000/api/v1`（在 `src/services/api.js` 中配置）
 
 ---
 
@@ -279,7 +306,7 @@ Authorization: Bearer {token}
 
 `frontend/src/services/api.js` 中默认基地址：
 ```javascript
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
 ```
 
 ### 认证
@@ -296,12 +323,36 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080
 | sports | sports | 运动 |
 | party | party | 派对 |
 
+### AI 搭配接口架构
+
+前端通过统一入口 `generateOutfit()` 调用搭配服务，`USE_MOCK` 标志控制 Mock / 真实后端切换：
+
+```
+前端 UI (OutfitMatchView)
+  → Pinia store (outfit.js)
+    → services/outfit.js → generateOutfit({ scene, weather, wardrobeIds })
+        ├── USE_MOCK=true  → generateOutfitMock()       [当前]
+        └── USE_MOCK=false → generateOutfitReal()       [后端就绪后]
+                                → getAIOutfit(scene, wardrobeIds)
+                                  → POST /api/v1/outfit/recommend
+```
+
+切换方式：`frontend/src/services/outfit.js` 中将 `USE_MOCK = false` 即可。
+
+### 三阶段交互流程
+
+```
+  INPUT (场景选择 + 天气)  →  GENERATING (AI 动画 + 文案轮播)  →  RESULTS (卡片叠层 + 滑动)
+```
+
+对应组件：`MatchFilter.vue` → `AIThinking.vue` → `OutfitCard.vue`，由 `OutfitMatchView.vue` 统一编排。
+
 ### 当前前端调用的后端接口
 
 | 前端文件 | 调用接口 | 状态 |
 |----------|----------|------|
-| `services/outfit.js` | `POST /outfit/recommend` | 已对接 |
-| `services/outfit.js` | `GET /outfit/{id}/reason` | 死代码，未调用 |
+| `services/outfit.js` | `POST /api/v1/outfit/recommend` | USE_MOCK=true 时走本地 Mock，切 false 直连后端 |
+| `services/outfit.js` | `GET /api/v1/outfit/{id}/reason` | 后端暂未实现此端点 |
 
 ### 前端本地 Mock（暂未调后端）
 
@@ -314,6 +365,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080
 | 用户资料 | `stores/user.js` + localStorage | `GET/PATCH /user/me` |
 | 收藏/历史 | `stores/user.js`（内存，刷新丢失）| 持久化接口 |
 | 每日小贴士 | 未调用 | `GET /daily-tips` |
+| AI 搭配生成 | `stores/outfit.js` + `services/outfit.js` (Mock) | `POST /api/v1/outfit/recommend`（已对齐，切 USE_MOCK 即用） |
 
 ---
 

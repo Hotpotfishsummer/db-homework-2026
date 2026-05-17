@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
-import { generateOutfitService } from '../services/outfit'
+import { generateOutfit } from '../services/outfit'
+import { useWardrobeStore } from './wardrobe'
 import { useUserStore } from './user'
 
 export const useOutfitStore = defineStore('outfit', {
@@ -37,12 +38,12 @@ export const useOutfitStore = defineStore('outfit', {
       this.outfits = []
 
       try {
-        const result = await generateOutfitService({ scene, weather })
-        if (result.code === 200) {
-          this.outfits = result.data.outfits
-        } else {
-          throw new Error(result.msg || '生成失败')
-        }
+        // 传入 wardrobeIds 供真实 API 使用
+        const wardrobeStore = useWardrobeStore()
+        const wardrobeIds = wardrobeStore.availableClothes.map(c => c.id)
+
+        const result = await generateOutfit({ scene, weather, wardrobeIds })
+        this.outfits = result.outfits
       } catch (error) {
         this.generationError = error.message
         throw error
