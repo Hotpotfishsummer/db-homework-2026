@@ -1,0 +1,409 @@
+# L-Wardrobe — AI 穿搭推荐系统
+
+前后端分离的 AI 穿搭推荐应用，核心功能是根据天气 + 用户衣橱生成场景化穿搭方案。
+
+- **前端**：Vue 3 + Pinia + Vue Router + Vite
+- **后端**：FastAPI + 和风天气 API + DeepSeek API
+- **数据库**：PostgreSQL（Neon 云）+ SQLAlchemy 2.0 异步 ORM + Alembic 迁移
+
+---
+
+## 目录结构
+
+```text
+.
+├── db/                          # 数据库模块（独立 Python 包）
+│   ├── base.py                  # SQLAlchemy DeclarativeBase
+│   ├── session.py               # 异步引擎 + 连接池 + get_db
+│   ├── alembic.ini              # Alembic 迁移配置
+│   ├── .env.example             # 数据库连接模板
+│   ├── models/                  # ORM 模型（4 张表）
+│   │   ├── user.py              # users 表
+│   │   ├── wardrobe_item.py     # wardrobe_items 表（JSONB）
+│   │   ├── outfit_recommendation.py # outfit_recommendations 表
+│   │   └── tryon_result.py      # tryon_results 表
+│   ├── repositories/            # Repository 查询层（21 个方法）
+│   │   ├── user_repo.py
+│   │   ├── wardrobe_repo.py
+│   │   ├── recommendation_repo.py
+│   │   └── tryon_repo.py
+│   ├── migrations/              # Alembic 迁移脚本
+│   │   ├── env.py               # 异步迁移环境
+│   │   └── versions/            # 已应用的迁移
+│   └── README.md                # 数据库模块详细文档
+├── backend/
+│   ├── app/
+│   │   ├── api/v1/         # API 路由
+│   │   ├── core/           # 配置（pydantic-settings）+ 认证占位
+│   │   ├── models/         # Pydantic schemas
+│   │   ├── services/       # 业务逻辑
+│   │   │   ├── weather.py      # 和风天气 API
+│   │   │   ├── outfit_ai.py    # DeepSeek 穿搭推荐
+│   │   │   ├── wardrobe_stub.py # 衣橱查询接口（待接入数据库）
+│   │   │   ├── vision.py       # 图片上传 + rembg 背景去除
+│   │   │   └── ai.py           # 每日小贴士（stub）
+│   │   └── static/         # 图片存储（raw + processed）
+│   ├── tests/
+│   ├── main.py             # FastAPI 入口
+│   ├── .env                # 环境变量（API key 等）
+│   ├── .env.example
+│   ├── requirements.txt
+│   └── environment.yml
+└── frontend/
+    ├── src/
+    │   ├── views/          # 页面级组件
+    │   ├── components/     # 复用组件
+    │   ├── stores/         # Pinia 状态管理
+    │   ├── services/       # API 客户端
+    │   └── router/         # Vue Router
+    ├── vite.config.js
+    └── package.json
+```
+
+---
+
+## 环境变量
+
+### 后端（`backend/.env`）
+
+复制 `backend/.env.example` 为 `backend/.env`，填入以下内容：
+
+```bash
+# 和风天气（必填，否则天气 fallback）
+HEFENG_API_KEY=your_hefeng_api_key
+HEFENG_API_HOST=your_host.re.qweatherapi.com
+
+# DeepSeek（必填，否则 AI fallback）
+DEEPSEEK_API_KEY=sk-your_key
+
+# 应用
+DEBUG=true
+```
+
+### 数据库（`db/.env`）
+
+复制 `db/.env.example` 为 `db/.env`（或直接编辑已存在的占位符文件），填入数据库连接：
+
+```bash
+# Neon 云数据库或其他 PostgreSQL
+DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require&channel_binding=require
+```
+
+详细配置说明见 `db/README.md`。
+
+---
+
+## 启动方式
+
+### 1. 数据库初始化（首次或换环境时）
+
+```bash
+# 在项目根目录执行，应用 Alembic 迁移建表
+alembic -c db/alembic.ini upgrade head
+```
+
+### 2. 后端
+
+```bash
+cd backend
+conda activate l-wardrobe      # 或 conda create -f environment.yml
+python main.py --port 8080
+```
+
+- API 文档：`http://localhost:8080/docs`
+- DEBUG=true 时自动热重载
+
+### 3. 前端
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+- 默认端口 5173（Vite）
+- API 基地址：`http://localhost:8080/api`（在 `src/services/api.js` 中配置）
+
+---
+
+## 后端 API 文档
+
+### 通用响应格式
+
+| 状态 | 格式 |
+|------|------|
+| 成功 | `{"code": 200, "data": {...}, "msg": "success"}` |
+| 失败 | `{"code": 400/401/500, "msg": "错误描述"}`（待统一） |
+
+### 1. AI 穿搭推荐（核心）
+
+**POST** `/api/v1/outfit/recommend`
+
+**Headers：**
+```
+Content-Type: application/json
+Authorization: Bearer {token}
+```
+
+**Request Body：**
+```json
+{
+  "scene": "commute",       // 场景: commute/date/casual/sports/party
+  "wardrobeIds": [1, 2, 4]  // 可用衣服 ID 列表
+}
+```
+
+**Response：**
+```json
+{
+  "code": 200,
+  "data": {
+    "id": "uuid",
+    "name": "简约通勤风",
+    "description": "白色衬衫搭配卡其色休闲裤...",
+    "scene": "通勤",
+    "matchRate": 92,
+    "reason": "阴天24°C通勤场景下，白色衬衫清爽透气...",
+    "image": ""
+  },
+  "msg": "success"
+}
+```
+
+**流程：**
+1. 根据 `wardrobeIds` 查询衣橱（当前 stub，数据库模块已就绪，待后端接入）
+2. 查询天气（深圳，目前写死，待从用户 profile 读取）
+3. 调用 DeepSeek 生成推荐
+4. 返回 `{code, data, msg}` 格式
+
+**Fallback：** 若 API key 未填或调用失败，返回模板化数据，不抛异常。
+
+---
+
+### 2. 衣服图片上传
+
+**POST** `/api/v1/garments/upload`
+
+**Headers：**
+```
+Content-Type: multipart/form-data
+Authorization: Bearer {token}
+```
+
+**Form Data：**
+```
+image: <文件>
+```
+
+**Response：**
+```json
+{
+  "user_id": "...",
+  "filename": "...",
+  "processed": {
+    "raw_path": "app/static/raw/xxx.jpg",
+    "processed_path": "app/static/processed/no_bg_xxx.jpg",
+    "bg_removed": true
+  }
+}
+```
+
+---
+
+### 3. 衣服列表
+
+**GET** `/api/v1/garments/`
+
+**Headers：**
+```
+Authorization: Bearer {token}
+```
+
+**Response：**
+```json
+{
+  "garments": [],
+  "user_id": "..."
+}
+```
+
+> **状态：** 数据库模块已提供 `WardrobeRepository.list_by_user()`，后端接入即可返回真实数据。
+
+---
+
+### 4. 用户信息
+
+**GET** `/api/v1/user/me`
+
+**Response：**
+```json
+{
+  "user_id": "...",
+  "role": "member",
+  "wardrobe_count": 0
+}
+```
+
+> **状态：** 数据库模块已提供 `WardrobeRepository.count_by_user()` 和 `UserRepository.get_by_id()`，后端接入即可。
+
+**PATCH** `/api/v1/user/me`
+
+> **状态：** 数据库模块已提供 `UserRepository.update()`，后端接入即可实现真实更新。
+
+---
+
+### 5. 每日小贴士
+
+**GET** `/api/v1/daily-tips/`
+
+**Response：**
+```json
+{
+  "tip": {
+    "tip": "Layer a light cardigan...",
+    "weather_summary": null,
+    "wardrobe_items_considered": 0,
+    "generated_by": "stub"
+  },
+  "user_id": "..."
+}
+```
+
+> **状态：** 当前为随机 demo tip，数据库已就绪，待接入天气 + LLM。
+
+---
+
+## 前端对接指南
+
+### API 地址
+
+`frontend/src/services/api.js` 中默认基地址：
+```javascript
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+```
+
+### 认证
+
+当前阶段：后端 `security.py` 为 placeholder，任意 Bearer token 都返回 `user_001`。前端传 `localStorage.getItem('token')` 即可。
+
+### 场景枚举（前后端必须一致）
+
+| 前端值 | 后端值 | 中文 |
+|--------|--------|------|
+| commute | commute | 通勤 |
+| date | date | 约会 |
+| casual | casual | 休闲 |
+| sports | sports | 运动 |
+| party | party | 派对 |
+
+### 当前前端调用的后端接口
+
+| 前端文件 | 调用接口 | 状态 |
+|----------|----------|------|
+| `services/outfit.js` | `POST /outfit/recommend` | 已对接 |
+| `services/outfit.js` | `GET /outfit/{id}/reason` | 死代码，未调用 |
+
+### 前端本地 Mock（暂未调后端）
+
+以下功能目前纯前端实现，后续需逐步对接后端：
+
+| 功能 | 前端实现 | 需后端接口 |
+|------|----------|-----------|
+| 登录/注册 | `stores/auth.js` + localStorage | `POST /auth/login`, `POST /auth/register` |
+| 衣橱 CRUD | `stores/wardrobe.js` | `GET/POST/DELETE /garments` |
+| 用户资料 | `stores/user.js` + localStorage | `GET/PATCH /user/me` |
+| 收藏/历史 | `stores/user.js`（内存，刷新丢失）| 持久化接口 |
+| 每日小贴士 | 未调用 | `GET /daily-tips` |
+
+---
+
+## 数据库模块说明
+
+数据库模块（`db/`）已完成开发，提供 4 张表、21 个 Repository 方法、Alembic 迁移管理。详见 `db/README.md`。
+
+### 已完成的数据库能力
+
+| 能力 | 对应 API | 说明 |
+|------|----------|------|
+| 用户管理 | `UserRepository` | 注册、查询、更新、删除 |
+| 衣橱 CRUD | `WardrobeRepository` | 添加衣物、列表查询、JSONB 筛选（颜色/季节/分类）、批量查询、删除 |
+| 穿搭推荐存储 | `RecommendationRepository` | 保存推荐结果（天气快照 + LLM 分析 + 衣物 ID 列表） |
+| 试穿记录 | `TryonRepository` | 保存试穿结果（原图 + AI 合成图路径） |
+
+### 后端接入待办
+
+以下位置需要后端团队从 stub 切换到真实数据库调用：
+
+#### 1. 衣橱查询
+
+**文件：** `backend/app/services/wardrobe_stub.py`
+
+**当前：** 返回 6 件 demo 衣服。
+
+**改为：**
+```python
+from db import WardrobeRepository
+
+async def get_by_ids(self, user_id: int, ids: list[int]) -> list[dict]:
+    async with async_session() as s:
+        repo = WardrobeRepository(s)
+        items = await repo.get_by_ids(user_id, ids)
+        return [{"id": i.item_id, "category": i.category, "image_url": i.image_url, ...} for i in items]
+```
+
+#### 2. 用户位置
+
+**文件：** `backend/app/api/v1/outfit.py:24`
+
+**当前：**
+```python
+weather = await weather_svc.get_current(location="深圳")
+```
+
+**改为：** 从数据库读取用户 `location` 字段。
+
+#### 3. 衣服列表
+
+**文件：** `backend/app/api/v1/garments.py:26`
+
+**改为：** 调用 `WardrobeRepository.list_by_user(user_id)`
+
+#### 4. 用户资料
+
+**文件：** `backend/app/api/v1/user.py`
+
+**改为：** `GET /me` 调用 `UserRepository.get_by_id()`；`PATCH /me` 调用 `UserRepository.update()`
+
+#### 5. 每日小贴士
+
+**文件：** `backend/app/services/ai.py`
+
+**改为：** 从数据库查询衣橱，结合天气 API + LLM 生成
+
+---
+
+## 技术栈版本
+
+| 组件 | 版本 |
+|------|------|
+| Python | 3.12+ |
+| FastAPI | >=0.110.0 |
+| SQLAlchemy | >=2.0（异步） |
+| asyncpg | >=0.29 |
+| Alembic | >=1.13 |
+| PostgreSQL | 15+（Neon 云） |
+| Vue | 3.2.13 |
+| Vite | 最新 |
+| Pinia | 3.0.4 |
+| rembg | >=2.0.50 |
+
+---
+
+## Git 工作流
+
+详见 `CONTRIBUTING.md`。核心规范：
+
+- 分支命名：`features/xxx`, `bug-fix/xxx`
+- Commit 格式：`type: subject`（feat/fix/docs/style/refactor/test/chore）
+- PR 合并：Squash and merge
+- 同步：`git rebase main`
