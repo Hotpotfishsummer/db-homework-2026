@@ -83,11 +83,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
+import { useOutfitStore } from '../stores/outfit'
 import { useHaptics } from '../composables/useHaptics'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const outfitStore = useOutfitStore()
 const { trigger } = useHaptics()
 
 const outfit = ref({
@@ -126,7 +128,30 @@ onMounted(() => {
 })
 
 const loadOutfit = (id) => {
-  console.log('加载穿搭:', id)
+  // 优先使用从搭配页传来的 outfit 数据
+  if (outfitStore.currentOutfit && outfitStore.currentOutfit.outfitId === id) {
+    const o = outfitStore.currentOutfit
+    outfit.value = {
+      id: o.outfitId,
+      name: `${o.scene}穿搭`,
+      description: o.reason,
+      scene: o.scene,
+      matchRate: o.matchRate,
+      reason: o.reason,
+      image: o.top?.image || 'https://picsum.photos/400/600?random=20'
+    }
+    outfitItems.value = [o.top, o.bottom, o.shoes, o.accessory].filter(Boolean).map(item => ({
+      ...item,
+      category: getCategoryLabel(item.category)
+    }))
+  } else {
+    console.log('加载穿搭:', id)
+  }
+}
+
+const getCategoryLabel = (cat) => {
+  const map = { top: '上装', bottom: '下装', shoes: '鞋靴', accessory: '配饰', bag: '包包' }
+  return map[cat] || cat
 }
 
 const goBack = () => {
