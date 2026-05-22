@@ -5,7 +5,11 @@ export const useUserStore = defineStore('user', {
   state: () => ({
     profile: {
       avatar: null,
+      coverImage: null,  // 背景封面图
       nickname: '',
+      bio: '',           // 个性签名
+      gender: null,      // 性别: 'male', 'female', 'other'
+      birthday: null,    // 生日: 'YYYY-MM-DD'
       // 物理档案
       height: null,      // 身高 cm
       weight: null,     // 体重 kg
@@ -85,7 +89,11 @@ export const useUserStore = defineStore('user', {
         const parsed = JSON.parse(saved)
         this.profile = {
           avatar: null,
+          coverImage: null,
           nickname: '',
+          bio: '',
+          gender: null,
+          birthday: null,
           height: null,
           weight: null,
           bmi: null,
