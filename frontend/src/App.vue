@@ -26,8 +26,8 @@ onMounted(() => {
   --text-tertiary: #999999;
   --border-color: #eeeeee;
   --shadow-color: rgba(0, 0, 0, 0.08);
-  --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --accent-color: #667eea;
+  --primary-gradient: linear-gradient(135deg, #6BBA9E 0%, #4A8B7A 100%);
+  --accent-color: #5B9A8B;
 }
 
 /* CSS 变量 - 深色主题 */
@@ -56,6 +56,7 @@ body, html {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   transition: background-color 0.3s, color 0.3s;
+  overscroll-behavior: none;
 }
 
 input, textarea {

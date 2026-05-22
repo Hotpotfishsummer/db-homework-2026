@@ -11,6 +11,8 @@ import LikedView from '../views/LikedView.vue'
 import HistoryView from '../views/HistoryView.vue'
 import OutfitMatchView from '../views/OutfitMatchView.vue'
 import AddClothView from '../views/AddClothView.vue'
+import ProfileEditView from '../views/ProfileEditView.vue'
+import ProfileSettingsView from '../views/ProfileSettingsView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -75,6 +77,18 @@ const router = createRouter({
       path: '/outfit-match',
       name: 'outfit-match',
       component: OutfitMatchView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/profile/edit',
+      name: 'profile-edit',
+      component: ProfileEditView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/profile/settings',
+      name: 'profile-settings',
+      component: ProfileSettingsView,
       meta: { requiresAuth: true }
     }
   ]
