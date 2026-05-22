@@ -98,7 +98,7 @@
 ```bash
 # 和风天气（必填，否则天气 fallback）
 HEFENG_API_KEY=your_hefeng_api_key
-HEFENG_API_HOST=your_host.re.qweatherapi.com
+HEFENG_API_HOST=your_hos.tre.qweatherapi.com
 
 # DeepSeek（必填，否则 AI fallback）
 DEEPSEEK_API_KEY=sk-your_key
