@@ -122,7 +122,7 @@ onUnmounted(() => {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  border: 2px solid rgba(102, 126, 234, 0.4);
+  border: 2px solid rgba(0, 102, 204, 0.4);
   animation: pulseRing 2s ease-out infinite;
 }
 
@@ -236,13 +236,13 @@ onUnmounted(() => {
 }
 
 .dot.active {
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  box-shadow: 0 0 8px rgba(102, 126, 234, 0.6);
+  background: var(--accent-color);
+  box-shadow: 0 0 8px rgba(0, 102, 204, 0.6);
   transform: scale(1.3);
 }
 
 .dot.done {
-  background: rgba(102, 126, 234, 0.4);
+  background: rgba(0, 102, 204, 0.4);
 }
 
 .overlay-enter-active,

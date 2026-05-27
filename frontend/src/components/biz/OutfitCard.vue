@@ -128,9 +128,9 @@ const resetSwipe = () => {
 <style scoped>
 .outfit-card {
   background: var(--bg-card);
-  border-radius: 24px;
+  border-radius: 18px;
   padding: 16px;
-  box-shadow: 0 12px 40px var(--shadow-color);
+  border: 1px solid var(--hairline);
   transition: transform 0.4s ease, opacity 0.4s ease;
   position: relative;
   overflow: hidden;
@@ -181,9 +181,9 @@ const resetSwipe = () => {
 
 .match-badge {
   padding: 6px 12px;
-  background: var(--primary-gradient);
-  color: white;
-  border-radius: 20px;
+  background: var(--accent-color);
+  color: var(--on-primary);
+  border-radius: 9999px;
   font-size: 13px;
   font-weight: 600;
 }
@@ -227,14 +227,14 @@ const resetSwipe = () => {
   display: block;
   font-size: 12px;
   color: var(--text-primary);
-  font-weight: 500;
+  font-weight: 400;
+  letter-spacing: -0.12px;
 }
 
 .ai-reason {
-  background: var(--bg-secondary);
+  background: var(--surface-pearl);
   border-radius: 14px;
   padding: 10px 14px;
-  border-left: 4px solid var(--accent-color);
   margin-bottom: 12px;
 }
 
@@ -279,10 +279,10 @@ const resetSwipe = () => {
   align-items: center;
   gap: 6px;
   padding: 10px 18px;
-  border-radius: 14px;
+  border-radius: 9999px;
   border: none;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 400;
   cursor: pointer;
   transition: all 0.2s;
 }

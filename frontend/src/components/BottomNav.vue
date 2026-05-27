@@ -61,12 +61,12 @@ const handleSheetAction = (type) => {
   left: 0;
   right: 0;
   height: 80px;
-  background: var(--bg-card);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
   display: flex;
   align-items: flex-end;
   justify-content: space-around;
   padding-bottom: env(safe-area-inset-bottom, 10px);
-  box-shadow: 0 -4px 20px var(--shadow-color);
   z-index: 100;
 }
 
@@ -86,9 +86,10 @@ const handleSheetAction = (type) => {
 }
 
 .nav-label {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-tertiary);
-  font-weight: 500;
+  font-weight: 400;
+  letter-spacing: -0.12px;
 }
 
 .nav-item:active {
@@ -106,19 +107,17 @@ const handleSheetAction = (type) => {
 .action-btn {
   width: 56px;
   height: 56px;
-  background: var(--primary-gradient);
+  background: var(--accent-color);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
   transform: translateY(-20px);
   transition: all 0.3s;
 }
 
 .action-btn:active {
   transform: translateY(-16px) scale(0.95);
-  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
 }
 
 .action-icon {

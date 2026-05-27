@@ -110,10 +110,11 @@ const onGenerate = () => {
 }
 
 .section-label {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 12px;
+  letter-spacing: -0.374px;
 }
 
 .scene-tabs {
@@ -128,12 +129,12 @@ const onGenerate = () => {
   gap: 6px;
   padding: 10px 18px;
   background: var(--bg-card);
-  border-radius: 20px;
+  border-radius: 9999px;
   font-size: 14px;
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 2px 8px var(--shadow-color);
+  border: 1px solid var(--hairline);
   user-select: none;
 }
 
@@ -142,9 +143,9 @@ const onGenerate = () => {
 }
 
 .scene-tab.active {
-  background: var(--primary-gradient);
-  color: white;
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.35);
+  background: var(--accent-color);
+  color: var(--on-primary);
+  border-color: var(--accent-color);
 }
 
 .scene-icon {
@@ -152,7 +153,7 @@ const onGenerate = () => {
 }
 
 .scene-name {
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .weather-row {
@@ -161,8 +162,8 @@ const onGenerate = () => {
   justify-content: space-between;
   padding: 14px 18px;
   background: var(--bg-card);
-  border-radius: 16px;
-  box-shadow: 0 2px 8px var(--shadow-color);
+  border-radius: 18px;
+  border: 1px solid var(--hairline);
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -182,9 +183,9 @@ const onGenerate = () => {
 }
 
 .weather-text {
-  font-size: 15px;
+  font-size: 17px;
   color: var(--text-primary);
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .weather-arrow {
@@ -195,9 +196,9 @@ const onGenerate = () => {
 .weather-picker {
   margin-top: 8px;
   background: var(--bg-card);
-  border-radius: 16px;
+  border-radius: 18px;
   padding: 8px;
-  box-shadow: 0 2px 8px var(--shadow-color);
+  border: 1px solid var(--hairline);
 }
 
 .weather-option {
@@ -224,26 +225,24 @@ const onGenerate = () => {
 
 .generate-btn {
   width: 100%;
-  padding: 16px;
-  background: var(--primary-gradient);
+  padding: 11px 22px;
+  background: var(--accent-color);
   border: none;
-  border-radius: 16px;
-  color: white;
+  border-radius: 9999px;
+  color: var(--on-primary);
   font-size: 17px;
-  font-weight: 600;
+  font-weight: 400;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  box-shadow: 0 8px 30px rgba(102, 126, 234, 0.35);
-  transition: all 0.25s;
+  transition: transform 0.2s;
   margin-top: 8px;
 }
 
 .generate-btn:active {
-  transform: scale(0.97);
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.25);
+  transform: scale(0.95);
 }
 
 .btn-icon {
