@@ -157,10 +157,11 @@ const goBack = () => {
 }
 
 .header-title {
-  font-size: 18px;
+  font-size: 21px;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
+  letter-spacing: 0.231px;
 }
 
 .header-spacer {
@@ -178,10 +179,11 @@ const goBack = () => {
 }
 
 .banner-title {
-  font-size: 22px;
-  font-weight: 700;
+  font-size: 28px;
+  font-weight: 600;
   color: var(--text-primary);
   margin: 0 0 8px 0;
+  letter-spacing: -0.374px;
 }
 
 .banner-sub {
@@ -213,15 +215,14 @@ const goBack = () => {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
-  background: var(--bg-card);
+  padding: 8px 14px;
+  background: var(--surface-pearl);
   border: none;
-  border-radius: 20px;
-  font-size: 13px;
-  color: var(--text-primary);
+  border-radius: 11px;
+  font-size: 14px;
+  color: var(--ink-muted-80);
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 2px 8px var(--shadow-color);
 }
 
 .refresh-btn:active,
@@ -275,11 +276,11 @@ const goBack = () => {
 .regenerate-btn {
   display: inline-flex;
   padding: 14px 28px;
-  background: var(--primary-gradient);
-  color: white;
-  font-size: 15px;
-  font-weight: 600;
-  box-shadow: 0 8px 30px rgba(102, 126, 234, 0.35);
+  background: var(--accent-color);
+  color: var(--on-primary);
+  font-size: 18px;
+  font-weight: 300;
+  border-radius: 9999px;
 }
 
 .deck-enter-active {

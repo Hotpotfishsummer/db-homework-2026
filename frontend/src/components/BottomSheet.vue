@@ -71,7 +71,7 @@ watch(() => props.show, (val) => {
   width: 100%;
   max-width: 500px;
   background: var(--bg-card);
-  border-radius: 24px 24px 0 0;
+  border-radius: 18px 18px 0 0;
   padding: 12px 24px 40px;
   padding-bottom: max(40px, env(safe-area-inset-bottom));
 }
@@ -79,16 +79,18 @@ watch(() => props.show, (val) => {
 .sheet-handle {
   width: 40px;
   height: 4px;
-  background: var(--border-color);
+  background: var(--hairline);
   border-radius: 2px;
   margin: 0 auto 20px;
 }
 
 .sheet-content h3 {
   text-align: center;
-  font-size: 18px;
+  font-size: 21px;
+  font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 24px;
+  letter-spacing: 0.231px;
 }
 
 .sheet-actions {
@@ -100,8 +102,8 @@ watch(() => props.show, (val) => {
 
 .action-item {
   flex: 1;
-  background: var(--bg-secondary);
-  border-radius: 16px;
+  background: var(--surface-pearl);
+  border-radius: 18px;
   padding: 24px 16px;
   display: flex;
   flex-direction: column;
@@ -123,8 +125,9 @@ watch(() => props.show, (val) => {
 .action-item span {
   font-size: 14px;
   color: var(--text-primary);
-  font-weight: 500;
+  font-weight: 400;
   text-align: center;
+  letter-spacing: -0.224px;
 }
 
 .cancel-btn {
@@ -132,8 +135,8 @@ watch(() => props.show, (val) => {
   padding: 14px;
   background: var(--bg-secondary);
   border: none;
-  border-radius: 12px;
-  font-size: 16px;
+  border-radius: 8px;
+  font-size: 17px;
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s;

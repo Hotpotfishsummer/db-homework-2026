@@ -249,8 +249,10 @@ const confirmSave = () => {
 }
 
 .page-nav h1 {
-  font-size: 18px;
+  font-size: 21px;
   color: var(--text-primary);
+  font-weight: 600;
+  letter-spacing: 0.231px;
 }
 
 .settings-content {
@@ -259,10 +261,10 @@ const confirmSave = () => {
 
 .settings-card {
   background: var(--bg-card);
-  border-radius: 14px;
+  border-radius: 18px;
   overflow: hidden;
   margin-bottom: 14px;
-  box-shadow: 0 1px 4px var(--shadow-color);
+  border: 1px solid var(--hairline);
 }
 
 .settings-item {
@@ -378,7 +380,7 @@ const confirmSave = () => {
 
 .gender-btn.active {
   border-color: var(--accent-color);
-  background: rgba(91,154,139,0.1);
+  background: rgba(0, 102, 204, 0.08);
   color: var(--accent-color);
 }
 
@@ -386,20 +388,19 @@ const confirmSave = () => {
   display: block;
   width: 100%;
   margin-top: 16px;
-  padding: 14px;
-  background: var(--primary-gradient);
+  padding: 11px 22px;
+  background: var(--accent-color);
   border: none;
-  border-radius: 14px;
-  color: white;
-  font-size: 16px;
-  font-weight: 600;
+  border-radius: 9999px;
+  color: var(--on-primary);
+  font-size: 17px;
+  font-weight: 400;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: transform 0.2s;
 }
 
 .btn-confirm:active {
-  opacity: 0.85;
-  transform: scale(0.98);
+  transform: scale(0.95);
 }
 
 .btn-confirm.saved {

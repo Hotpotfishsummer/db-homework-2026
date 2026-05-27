@@ -129,15 +129,15 @@ const handleRegister = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  background: var(--bg-primary);
   padding: 20px;
 }
 
 .register-card {
   background: var(--bg-card);
   padding: 40px 35px;
-  border-radius: 20px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  border-radius: 18px;
+  border: 1px solid var(--hairline);
   width: 100%;
   max-width: 380px;
   text-align: center;
@@ -149,10 +149,11 @@ const handleRegister = async () => {
 }
 
 h1 {
-  font-size: 24px;
+  font-size: 28px;
   color: var(--text-primary);
   margin: 0 0 8px 0;
   font-weight: 600;
+  letter-spacing: -0.374px;
 }
 
 .subtitle {
@@ -168,17 +169,17 @@ h1 {
 
 input {
   width: 100%;
-  padding: 14px 16px;
-  border: 2px solid var(--border-color);
-  border-radius: 10px;
-  font-size: 15px;
+  padding: 12px 20px;
+  border: 1px solid var(--hairline);
+  border-radius: 9999px;
+  font-size: 17px;
   transition: border-color 0.3s;
   box-sizing: border-box;
 }
 
 input:focus {
   outline: none;
-  border-color: #f5576c;
+  border-color: var(--accent-color);
 }
 
 input.error-input {
@@ -213,20 +214,19 @@ input.error-input {
 
 .btn-primary {
   width: 100%;
-  padding: 14px;
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: white;
+  padding: 11px 22px;
+  background: var(--accent-color);
+  color: var(--on-primary);
   border: none;
-  border-radius: 10px;
-  font-size: 16px;
-  font-weight: 600;
+  border-radius: 9999px;
+  font-size: 17px;
+  font-weight: 400;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.2s;
 }
 
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(245, 87, 108, 0.4);
+.btn-primary:active:not(:disabled) {
+  transform: scale(0.95);
 }
 
 .btn-primary:disabled {
@@ -241,7 +241,7 @@ input.error-input {
 }
 
 .link-text a {
-  color: #f5576c;
+  color: var(--accent-color);
   text-decoration: none;
   font-weight: 600;
 }

@@ -88,7 +88,7 @@ const deleteCloth = () => {
   max-width: 500px;
   max-height: 85vh;
   background: var(--bg-card);
-  border-radius: 24px 24px 0 0;
+  border-radius: 18px 18px 0 0;
   overflow: hidden;
   position: relative;
 }
@@ -125,9 +125,11 @@ const deleteCloth = () => {
 }
 
 .detail-info h2 {
-  font-size: 20px;
+  font-size: 21px;
+  font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 12px;
+  letter-spacing: 0.231px;
 }
 
 .detail-tags {
@@ -150,8 +152,8 @@ const deleteCloth = () => {
 }
 
 .ai-suggestion {
-  background: var(--primary-gradient);
-  border-radius: 16px;
+  background: var(--accent-color);
+  border-radius: 18px;
   padding: 16px;
   margin-bottom: 24px;
 }
@@ -160,7 +162,7 @@ const deleteCloth = () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: white;
+  color: var(--on-primary);
   font-weight: 600;
   margin-bottom: 8px;
 }
@@ -172,8 +174,9 @@ const deleteCloth = () => {
 .suggestion-text {
   color: rgba(255, 255, 255, 0.9);
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.43;
   margin: 0;
+  letter-spacing: -0.224px;
 }
 
 .detail-actions {
@@ -183,12 +186,16 @@ const deleteCloth = () => {
 
 .detail-actions button {
   flex: 1;
-  padding: 14px;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 500;
+  padding: 11px 22px;
+  border-radius: 9999px;
+  font-size: 17px;
+  font-weight: 400;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: transform 0.2s;
+}
+
+.detail-actions button:active {
+  transform: scale(0.95);
 }
 
 .btn-secondary {

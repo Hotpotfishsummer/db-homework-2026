@@ -115,9 +115,10 @@ const toggleStatus = (cloth) => {
 }
 
 .wardrobe-header h1 {
-  font-size: 24px;
+  font-size: 28px;
   color: var(--text-primary);
   font-weight: 600;
+  letter-spacing: -0.374px;
 }
 
 .count {
@@ -147,7 +148,7 @@ const toggleStatus = (cloth) => {
   gap: 4px;
   padding: 12px 16px;
   background: var(--bg-secondary);
-  border-radius: 12px;
+  border-radius: 9999px;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -157,11 +158,11 @@ const toggleStatus = (cloth) => {
 }
 
 .tab-item.active {
-  background: var(--primary-gradient);
+  background: var(--accent-color);
 }
 
 .tab-item.active .tab-name {
-  color: white;
+  color: var(--on-primary);
 }
 
 .tab-icon {
@@ -171,7 +172,8 @@ const toggleStatus = (cloth) => {
 .tab-name {
   font-size: 12px;
   color: var(--text-secondary);
-  font-weight: 500;
+  font-weight: 400;
+  letter-spacing: -0.12px;
 }
 
 .clothing-grid {
@@ -183,9 +185,9 @@ const toggleStatus = (cloth) => {
 
 .clothing-item {
   background: var(--bg-card);
-  border-radius: 16px;
+  border-radius: 18px;
   overflow: hidden;
-  box-shadow: 0 4px 12px var(--shadow-color);
+  border: 1px solid var(--hairline);
   cursor: pointer;
   transition: all 0.2s;
 }

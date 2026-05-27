@@ -142,9 +142,9 @@ const clearHistory = () => {
   align-items: center;
   background: var(--bg-card);
   padding: 12px;
-  border-radius: 12px;
+  border-radius: 18px;
   margin-bottom: 10px;
-  box-shadow: 0 2px 8px var(--shadow-color);
+  border: 1px solid var(--hairline);
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -174,7 +174,9 @@ const clearHistory = () => {
 }
 
 .item-info h3 {
-  font-size: 14px;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.374px;
   color: var(--text-primary);
   margin-bottom: 4px;
   white-space: nowrap;
@@ -218,13 +220,18 @@ const clearHistory = () => {
 }
 
 .go-discover {
-  padding: 12px 32px;
-  background: var(--primary-gradient);
-  color: white;
+  padding: 11px 22px;
+  background: var(--accent-color);
+  color: var(--on-primary);
   border: none;
-  border-radius: 24px;
-  font-size: 14px;
-  font-weight: 500;
+  border-radius: 9999px;
+  font-size: 17px;
+  font-weight: 400;
   cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.go-discover:active {
+  transform: scale(0.95);
 }
 </style>

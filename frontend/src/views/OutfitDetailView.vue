@@ -201,22 +201,21 @@ const viewInWardrobe = (item) => {
   top: 0;
   left: 0;
   right: 0;
-  height: 56px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
-  background: var(--bg-card);
-  backdrop-filter: blur(10px);
+  background: var(--surface-black);
   z-index: 100;
 }
 
 .nav-back,
 .nav-share {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  background: var(--bg-secondary);
+  background: var(--chip-translucent);
   border: none;
   font-size: 18px;
   cursor: pointer;
@@ -224,7 +223,7 @@ const viewInWardrobe = (item) => {
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
-  color: var(--text-primary);
+  color: #ffffff;
 }
 
 .nav-back:active,
@@ -234,9 +233,10 @@ const viewInWardrobe = (item) => {
 }
 
 .nav-title {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #ffffff;
+  letter-spacing: -0.374px;
 }
 
 .outfit-hero {
@@ -269,9 +269,9 @@ const viewInWardrobe = (item) => {
 
 .match-tag {
   padding: 8px 16px;
-  background: var(--primary-gradient);
-  color: white;
-  border-radius: 20px;
+  background: var(--accent-color);
+  color: var(--on-primary);
+  border-radius: 9999px;
   font-size: 13px;
   font-weight: 600;
 }
@@ -279,28 +279,30 @@ const viewInWardrobe = (item) => {
 .outfit-info {
   padding: 24px;
   background: var(--bg-card);
-  border-radius: 24px 24px 0 0;
+  border-radius: 18px 18px 0 0;
   margin-top: -24px;
   position: relative;
 }
 
 .outfit-info h1 {
-  font-size: 24px;
+  font-size: 28px;
   color: var(--text-primary);
   margin-bottom: 8px;
+  font-weight: 600;
+  letter-spacing: -0.374px;
 }
 
 .description {
-  font-size: 15px;
+  font-size: 17px;
   color: var(--text-secondary);
+  line-height: 1.47;
   margin-bottom: 20px;
 }
 
 .ai-reason-card {
-  background: var(--bg-secondary);
-  border-radius: 16px;
+  background: var(--surface-pearl);
+  border-radius: 18px;
   padding: 16px;
-  border-left: 4px solid var(--accent-color);
 }
 
 .ai-header {
@@ -333,10 +335,11 @@ const viewInWardrobe = (item) => {
 }
 
 .section-title {
-  font-size: 16px;
+  font-size: 21px;
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 16px;
+  letter-spacing: 0.231px;
 }
 
 .items-list {
@@ -350,8 +353,8 @@ const viewInWardrobe = (item) => {
   align-items: center;
   background: var(--bg-card);
   padding: 12px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px var(--shadow-color);
+  border-radius: 18px;
+  border: 1px solid var(--hairline);
 }
 
 .item-image {
@@ -412,8 +415,8 @@ const viewInWardrobe = (item) => {
   align-items: flex-start;
   background: var(--bg-card);
   padding: 16px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px var(--shadow-color);
+  border-radius: 18px;
+  border: 1px solid var(--hairline);
 }
 
 .suggest-icon {
@@ -441,18 +444,18 @@ const viewInWardrobe = (item) => {
   right: 0;
   padding: 16px 24px;
   padding-bottom: max(16px, env(safe-area-inset-bottom));
-  background: var(--bg-card);
+  background: rgba(245, 245, 247, 0.8);
+  backdrop-filter: blur(20px);
   display: flex;
   gap: 12px;
-  box-shadow: 0 -4px 20px var(--shadow-color);
 }
 
 .action-btn {
   flex: 1;
-  padding: 14px;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 600;
+  padding: 11px 22px;
+  border-radius: 9999px;
+  font-size: 17px;
+  font-weight: 400;
   cursor: pointer;
   transition: all 0.2s;
   border: none;
@@ -468,8 +471,8 @@ const viewInWardrobe = (item) => {
 }
 
 .action-btn.primary {
-  background: var(--primary-gradient);
-  color: white;
+  background: var(--accent-color);
+  color: var(--on-primary);
 }
 
 .action-btn.primary.liked {

@@ -206,18 +206,25 @@ const saveCloth = () => {
 }
 
 .page-header h1 {
-  font-size: 18px;
+  font-size: 21px;
   color: var(--text-primary);
+  font-weight: 600;
+  letter-spacing: 0.231px;
 }
 
 .save-btn {
   padding: 8px 16px;
-  background: var(--primary-gradient);
-  color: white;
+  background: var(--accent-color);
+  color: var(--on-primary);
   border: none;
-  border-radius: 20px;
+  border-radius: 9999px;
   font-size: 14px;
   cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.save-btn:active {
+  transform: scale(0.95);
 }
 
 .save-btn:disabled {
@@ -233,9 +240,9 @@ const saveCloth = () => {
   width: 100%;
   aspect-ratio: 1;
   max-height: 300px;
-  background: var(--bg-card);
-  border-radius: 20px;
-  border: 2px dashed var(--border-color);
+  background: var(--surface-pearl);
+  border-radius: 18px;
+  border: none;
   overflow: hidden;
   cursor: pointer;
   margin-bottom: 24px;
@@ -305,11 +312,11 @@ const saveCloth = () => {
 
 .form-input {
   width: 100%;
-  padding: 14px 16px;
+  padding: 12px 20px;
   background: var(--bg-card);
-  border: 2px solid var(--border-color);
-  border-radius: 12px;
-  font-size: 15px;
+  border: 1px solid var(--hairline);
+  border-radius: 9999px;
+  font-size: 17px;
   color: var(--text-primary);
   transition: border-color 0.3s;
 }
@@ -336,7 +343,7 @@ const saveCloth = () => {
   gap: 6px;
   padding: 12px 8px;
   background: var(--bg-card);
-  border-radius: 12px;
+  border-radius: 18px;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -346,7 +353,7 @@ const saveCloth = () => {
 }
 
 .category-item.active {
-  background: var(--primary-gradient);
+  background: var(--accent-color);
 }
 
 .cat-icon {
@@ -359,7 +366,7 @@ const saveCloth = () => {
 }
 
 .category-item.active .cat-name {
-  color: white;
+  color: var(--on-primary);
 }
 
 .color-grid {
