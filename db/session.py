@@ -5,8 +5,11 @@ from typing import AsyncGenerator
 
 
 class DBConfig(BaseSettings):
-    database_url: str
-    model_config = {"env_file": str(Path(__file__).parent / ".env"), "env_file_encoding": "utf-8"}
+    database_url: str = "postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/l_wardrobe"
+    model_config = {
+        "env_file": str(Path(__file__).resolve().parents[1] / "backend" / ".env"),
+        "env_file_encoding": "utf-8",
+    }
 
 
 _config = DBConfig()

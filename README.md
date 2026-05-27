@@ -107,13 +107,16 @@ DEEPSEEK_API_KEY=sk-your_key
 DEBUG=true
 ```
 
-### 数据库（`db/.env`）
+### 数据库（`backend/.env`）
 
-复制 `db/.env.example` 为 `db/.env`（或直接编辑已存在的占位符文件），填入数据库连接：
+复制 `backend/.env.example` 为 `backend/.env`（或直接编辑已存在的占位符文件），填入数据库连接：
 
 ```bash
-# Neon 云数据库或其他 PostgreSQL
-DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require&channel_binding=require
+# 本地 PostgreSQL（推荐）
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/l_wardrobe
+
+# Neon 云数据库或其他 PostgreSQL（兼容保留）
+# DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require&channel_binding=require
 ```
 
 详细配置说明见 `db/README.md`。

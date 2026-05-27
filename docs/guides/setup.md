@@ -44,10 +44,14 @@ DEEPSEEK_API_KEY=sk-your_key
 DEBUG=true
 ```
 
-**数据库** (`db/.env`)：
+**数据库** (`backend/.env`)：
 
 ```bash
-DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
+# 本地 PostgreSQL（推荐）
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/l_wardrobe
+
+# Neon / 云数据库（兼容保留）
+# DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require&channel_binding=require
 ```
 
 详细配置见 [数据库模块文档](../modules/db.md)。

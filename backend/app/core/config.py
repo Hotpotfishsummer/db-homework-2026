@@ -1,5 +1,7 @@
-from pydantic_settings import BaseSettings
 from functools import lru_cache
+from pathlib import Path
+
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -13,10 +15,10 @@ class Settings(BaseSettings):
     deepseek_api_key: str = ""
     llm_api_key: str = ""
     llm_api_base: str = "https://api.openai.com/v1"
-    database_url: str = "sqlite:///./wardrobe.db"
+    database_url: str = "postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/l_wardrobe"
 
     class Config:
-        env_file = ".env"
+        env_file = str(Path(__file__).resolve().parents[2] / ".env")
         env_file_encoding = "utf-8"
 
 
