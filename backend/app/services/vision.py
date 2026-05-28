@@ -3,15 +3,6 @@ from pathlib import Path
 from fastapi import UploadFile
 from PIL import Image
 
-# Rembg is optional at import time so the server can start even if
-# the model download is in progress or the package is missing.
-try:
-    from rembg import remove
-    REMBG_AVAILABLE = True
-except Exception:
-    remove = None
-    REMBG_AVAILABLE = False
-
 RAW_DIR = Path("app/static/raw")
 PROCESSED_DIR = Path("app/static/processed")
 
@@ -31,9 +22,16 @@ class VisionService:
 
         processed_path = PROCESSED_DIR / f"no_bg_{raw_path.name}"
 
-        if REMBG_AVAILABLE and remove is not None:
+        # Import rembg lazily so backend startup is not blocked by optional runtime deps.
+        remove_fn = None
+        try:
+            from rembg import remove as remove_fn
+        except BaseException:
+            remove_fn = None
+
+        if remove_fn is not None:
             input_image = Image.open(io.BytesIO(content))
-            output_image = remove(input_image)
+            output_image = remove_fn(input_image)
             output_image.save(processed_path)
             bg_removed = True
         else:

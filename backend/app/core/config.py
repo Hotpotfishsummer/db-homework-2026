@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     deepseek_api_key: str = ""
     llm_api_key: str = ""
     llm_api_base: str = "https://api.openai.com/v1"
+    llm_model: str = "gpt-4o-mini"
+    llm_temperature: float = 0.2
+    llm_max_tokens: int = 800
+    agent_max_iterations: int = 3
     database_url: str = "postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/l_wardrobe"
 
     class Config:

@@ -9,6 +9,7 @@ class DBConfig(BaseSettings):
     model_config = {
         "env_file": str(Path(__file__).resolve().parents[1] / "backend" / ".env"),
         "env_file_encoding": "utf-8",
+        "extra": "ignore",
     }
 
 
