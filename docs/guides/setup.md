@@ -56,6 +56,26 @@ DATABASE_URL=postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/l_wardrobe
 
 详细配置见 [数据库模块文档](../modules/db.md)。
 
+### 4.1 Docker Compose 本地开发
+
+如果你想直接起三容器联调环境，先准备好 [backend/.env](../../backend/.env) 的本地配置，然后在仓库根目录执行：
+
+```bash
+docker compose up --build backend
+docker compose up --build frontend
+```
+
+相关辅助命令：
+
+```bash
+docker compose logs -f
+docker compose down --remove-orphans
+```
+
+VS Code 里也可以直接使用 `Frontend: Dev`、`Backend: Compose Up`、`Frontend: Compose Up`、`Compose: Logs`、`Compose: Down` 这几个任务。
+
+`Backend: Compose Up` 和 `Frontend: Compose Up` 会在集成终端里分别启动对应容器并持续输出日志，适合配合调试器使用。
+
 ### 5. 初始化数据库
 
 ```bash

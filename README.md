@@ -3,7 +3,7 @@
 前后端分离的 AI 穿搭推荐应用，核心功能是根据天气 + 用户衣橱生成场景化穿搭方案。
 
 - **前端**：Vue 3 + Pinia + Vue Router + Vite
-- **后端**：FastAPI + 和风天气 API + DeepSeek API
+- **后端**：FastAPI + 和风天气 API + DeepSeek API + LangChain agent
 - **数据库**：PostgreSQL（Neon 云）+ SQLAlchemy 2.0 异步 ORM + Alembic 迁移
 
 ---
@@ -45,7 +45,7 @@
 │   │   └── static/         # 图片存储（raw + processed）
 │   ├── tests/
 │   ├── main.py             # FastAPI 入口
-│   ├── .env                # 环境变量（API key 等）
+│   ├── .env                # 本地开发环境变量（Docker Compose 使用）
 │   ├── .env.example
 │   ├── requirements.txt
 │   └── environment.yml
@@ -91,39 +91,53 @@
 
 ## 环境变量
 
-### 后端（`backend/.env`）
-
-复制 `backend/.env.example` 为 `backend/.env`，填入以下内容：
+后端统一使用 [backend/.env](backend/.env) 作为本地运行配置入口，仓库里提供了 [backend/.env.example](backend/.env.example) 作为模板。Docker Compose 启动时也会读取这个文件。
 
 ```bash
-# 和风天气（必填，否则天气 fallback）
-HEFENG_API_KEY=your_hefeng_api_key
-HEFENG_API_HOST=your_hos.tre.qweatherapi.com
+# 本地 PostgreSQL（推荐，Compose 默认使用）
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/l_wardrobe
 
-# DeepSeek（必填，否则 AI fallback）
-DEEPSEEK_API_KEY=sk-your_key
-
-# 应用
-DEBUG=true
+# 其他运行时配置
+HEFENG_API_KEY=
+DEEPSEEK_API_KEY=
+LLM_API_KEY=
+LLM_API_BASE=https://api.openai.com/v1
+LLM_MODEL=gpt-4o-mini
 ```
 
-### 数据库（`backend/.env`）
+详细配置说明见 [db/README.md](db/README.md)。
 
-复制 `backend/.env.example` 为 `backend/.env`（或直接编辑已存在的占位符文件），填入数据库连接：
+---
+
+## Docker Compose 开发环境
+
+仓库根目录提供了统一的 [docker-compose.yml](docker-compose.yml)，包含 `postgres`、`backend`、`frontend` 三个服务。
 
 ```bash
-# 本地 PostgreSQL（推荐）
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/l_wardrobe
-
-# Neon 云数据库或其他 PostgreSQL（兼容保留）
-# DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require&channel_binding=require
+docker compose up --build backend
+docker compose up --build frontend
+docker compose logs -f
+docker compose down --remove-orphans
 ```
 
-详细配置说明见 `db/README.md`。
+默认端口：`8000`（后端）、`5173`（前端）、`5433`（本机映射的 PostgreSQL）。
+
+在 VS Code 中也可以直接使用 `.vscode/tasks.json` 里的 `Frontend: Dev`、`Backend: Compose Up`、`Frontend: Compose Up`、`Compose: Logs`、`Compose: Down`，以及 `.vscode/launch.json` 里的 `Full Stack: Backend + Frontend`。
 
 ---
 
 ## 启动方式
+
+### 0. Compose 启动（推荐开发联调）
+
+```bash
+docker compose up --build backend
+docker compose up --build frontend
+```
+
+这些命令会分别在当前终端持续输出对应服务的日志，适合调试时直接观察启动过程。
+
+首次启动如果本机没有缓存镜像，需要先能访问 Docker Hub。
 
 ### 1. 数据库初始化（首次或换环境时）
 
@@ -152,7 +166,7 @@ npm run dev
 ```
 
 - 默认端口 5173（Vite）或 8081（vue-cli）
-- API 基地址：`http://localhost:8000/api/v1`（在 `src/services/api.js` 中配置）
+- API 基地址：`/api/v1`，Compose 开发环境下由 Vite 代理到后端容器
 
 ---
 
