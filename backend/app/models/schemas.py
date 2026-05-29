@@ -84,3 +84,18 @@ class StylingRecommendationEnvelope(BaseModel):
     code: int = 200
     data: StylingRecommendation
     msg: str = "success"
+
+
+class GarmentDetectionResponse(BaseModel):
+    """Schema for garment detection response."""
+    contains_garment: bool
+    confidence: float = Field(..., ge=0.0, le=1.0)
+    description: str
+
+
+class GarmentUploadResponse(BaseModel):
+    """Schema for uploaded garment with detection and tagging results."""
+    contains_garment: bool
+    detection: GarmentDetectionResponse
+    analysis: dict
+    garment: dict | None = None

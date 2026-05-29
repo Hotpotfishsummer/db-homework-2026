@@ -4,6 +4,8 @@
 
 独立的 PostgreSQL 异步数据库层，当前主线以本地 PostgreSQL 为默认接入方式，Neon 等云数据库方案仅作为兼容保留。数据库连接、迁移和运行时配置统一围绕 `backend/.env` 管理。
 
+当前主线数据库已收敛为 `users` 和 `clothes` 两张核心表，衣物标签通过 JSONB 扩展字段保存，旧的推荐和试穿持久化表已退役。
+
 ## 环境配置
 
 建议先复制 `backend/.env.example` 为 `backend/.env`，然后配置数据库连接：

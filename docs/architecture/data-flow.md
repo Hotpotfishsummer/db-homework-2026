@@ -1,74 +1,102 @@
 # 数据流
 
-## 1. AI 穿搭推荐流程
-
-```
-用户选择场景 + 衣物
-        │
-        ▼
-前端 POST /api/v1/outfit/recommend
-        │
-        ▼
-后端查询天气（和风 API，写死"深圳"）
-        │
-        ▼
-后端调用 DeepSeek LLM 生成搭配
-        │
-        ▼
-存储到 outfit_recommendations 表
-        │
-        ▼
-返回搭配结果给前端
-        │
-        ▼
-前端展示 OutfitCard 卡片
-```
-
-**API 请求体：**
-```json
-{
-  "scene": "commute",
-  "wardrobeIds": [1, 2, 3]
-}
-```
-
-**API 响应体：**
-```json
-{
-  "code": 200,
-  "data": {
-    "id": "uuid",
-    "name": "简约通勤风",
-    "description": "白色衬衫搭配卡其色休闲裤...",
-    "scene": "通勤",
-    "matchRate": 92,
-    "reason": "阴天24°C通勤场景下..."
-  }
-}
-```
-
-## 2. 衣橱 CRUD 流程
+## 1. 衣物上传与打标流程
 
 ```
 用户上传图片
         │
         ▼
-后端 rembg 去背景
+前端 POST /api/v1/garments/upload
         │
         ▼
-存储到 app/static/processed/
+后端先做衣物存在性识别
+        │
+        ├── 不包含衣物 → 直接返回识别结果，不落库
         │
         ▼
-写入 wardrobe_items 表（image_url 路径）
+包含衣物
         │
         ▼
-返回上传结果给前端
+后端再次调用 AI，附加首次识别文字描述，生成标签
+        │
+        ▼
+保存原始图片文件与标签 JSON 到 clothes 表
+        │
+        ▼
+返回识别结果、标签和落库信息给前端
+```
+
+**API 请求体：**
+```http
+multipart/form-data
+image=<file>
+```
+
+**API 响应体（识别到衣物并落库）：**
+```json
+{
+  "contains_garment": true,
+  "detection": {
+    "contains_garment": true,
+    "confidence": 0.98,
+    "description": "A white short-sleeve shirt"
+  },
+  "analysis": {
+    "category": "top",
+    "color": "white",
+    "thickness": "thin",
+    "style_features": ["minimal", "casual"],
+    "warmth": 0.2,
+    "cooling": 0.8,
+    "season": ["summer"],
+    "materials": ["cotton"],
+    "pattern": "solid",
+    "fit": "regular",
+    "tags": ["basic", "daily"],
+    "summary": "A lightweight white cotton shirt"
+  },
+  "garment": {
+    "id": 1,
+    "item_id": 1,
+    "user_id": 1,
+    "image_url": "app/static/raw/example.jpg",
+    "category": "top",
+    "attributes": {
+      "source_filename": "example.jpg",
+      "detection": {
+        "contains_garment": true,
+        "confidence": 0.98,
+        "description": "A white short-sleeve shirt"
+      },
+      "tags": {
+        "category": "top",
+        "color": "white",
+        "thickness": "thin"
+      },
+      "processed_path": "app/static/processed/no_bg_example.jpg",
+      "bg_removed": true
+    },
+    "created_at": "2026-05-29T12:00:00Z"
+  }
+}
+```
+
+## 2. 仅识别不落库的情况
+
+```
+用户上传图片
+        │
+        ▼
+后端识别出图片中不包含衣物
+        │
+        ▼
+直接返回 contains_garment=false、confidence、description
 ```
 
 ## 3. 数据库连接路径
 
 ```
-backend/app/api/v1/xxx.py
+backend/app/api/v1/garments.py
         │
         ▼
 Depends(get_db)
@@ -78,14 +106,4 @@ db/session.py → create_async_engine(DATABASE_URL)
         │
         ▼
 AsyncSession (asyncpg 驱动)
-        │
-        ▼
-PostgreSQL (Neon 云)
 ```
-
-### 连接 URL 转换规则
-
-`db/session.py` 自动转换：
-- `postgresql://` → `postgresql+asyncpg://`
-- `sslmode=require` → `ssl=require`
-- 移除 `channel_binding=require`
