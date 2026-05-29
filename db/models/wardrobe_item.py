@@ -10,8 +10,8 @@ def _utcnow():
     return datetime.now(timezone.utc)
 
 
-class WardrobeItem(Base):
-    __tablename__ = "wardrobe_items"
+class Clothes(Base):
+    __tablename__ = "clothes"
 
     item_id:    Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id:    Mapped[int] = mapped_column(ForeignKey("users.user_id", ondelete="CASCADE"))
@@ -20,4 +20,7 @@ class WardrobeItem(Base):
     attributes: Mapped[Optional[dict]] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
-    user: Mapped["User"] = relationship(back_populates="wardrobe_items")
+    user: Mapped["User"] = relationship(back_populates="clothes")
+
+
+WardrobeItem = Clothes

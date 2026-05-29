@@ -1,43 +1,43 @@
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.models.wardrobe_item import WardrobeItem
+from db.models.wardrobe_item import Clothes
 
 
-class WardrobeRepository:
+class ClothesRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
     async def create(self, user_id: int, image_url: str, category: str | None = None,
-                     attributes: dict | None = None) -> WardrobeItem:
-        item = WardrobeItem(user_id=user_id, image_url=image_url,
-                            category=category, attributes=attributes)
+                     attributes: dict | None = None) -> Clothes:
+        item = Clothes(user_id=user_id, image_url=image_url,
+                       category=category, attributes=attributes)
         self.session.add(item)
         await self.session.flush()
         return item
 
-    async def get_by_id(self, item_id: int) -> WardrobeItem | None:
-        return await self.session.get(WardrobeItem, item_id)
+    async def get_by_id(self, item_id: int) -> Clothes | None:
+        return await self.session.get(Clothes, item_id)
 
-    async def get_by_ids(self, user_id: int, ids: list[int]) -> list[WardrobeItem]:
+    async def get_by_ids(self, user_id: int, ids: list[int]) -> list[Clothes]:
         stmt = (
-            select(WardrobeItem)
-            .where(WardrobeItem.user_id == user_id)
-            .where(WardrobeItem.item_id.in_(ids))
+            select(Clothes)
+            .where(Clothes.user_id == user_id)
+            .where(Clothes.item_id.in_(ids))
         )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
     async def list_by_user(self, user_id: int, *, category: str | None = None,
                            season: str | None = None, color: str | None = None,
-                           limit: int = 20, offset: int = 0) -> list[WardrobeItem]:
-        stmt = select(WardrobeItem).where(WardrobeItem.user_id == user_id)
+                           limit: int = 20, offset: int = 0) -> list[Clothes]:
+        stmt = select(Clothes).where(Clothes.user_id == user_id)
         if category:
-            stmt = stmt.where(WardrobeItem.category == category)
+            stmt = stmt.where(Clothes.category == category)
         if season:
-            stmt = stmt.where(WardrobeItem.attributes.contains({"season": season}))
+            stmt = stmt.where(Clothes.attributes.contains({"season": season}))
         if color:
-            stmt = stmt.where(WardrobeItem.attributes.contains({"color": color}))
-        stmt = stmt.order_by(WardrobeItem.created_at.desc()).limit(limit).offset(offset)
+            stmt = stmt.where(Clothes.attributes.contains({"color": color}))
+        stmt = stmt.order_by(Clothes.created_at.desc()).limit(limit).offset(offset)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
@@ -55,6 +55,9 @@ class WardrobeRepository:
         return None
 
     async def count_by_user(self, user_id: int) -> int:
-        stmt = select(func.count()).where(WardrobeItem.user_id == user_id)
+        stmt = select(func.count()).where(Clothes.user_id == user_id)
         result = await self.session.execute(stmt)
         return result.scalar_one()
+
+
+WardrobeRepository = ClothesRepository

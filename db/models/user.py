@@ -20,6 +20,4 @@ class User(Base):
     location:         Mapped[Optional[str]] = mapped_column(String(100))
     created_at:       Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
-    wardrobe_items: Mapped[list["WardrobeItem"]] = relationship(back_populates="user")
-    recommendations: Mapped[list["OutfitRecommendation"]] = relationship(back_populates="user")
-    tryon_results: Mapped[list["TryonResult"]] = relationship(back_populates="user")
+    clothes: Mapped[list["Clothes"]] = relationship(back_populates="user", cascade="all, delete-orphan")

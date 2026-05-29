@@ -10,7 +10,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 from db.base import Base
-from db.models import User, WardrobeItem, OutfitRecommendation, TryonResult
+from db.models import User, Clothes
 
 
 # revision identifiers, used by Alembic.

@@ -1,9 +1,6 @@
 from db.repositories.user_repo import UserRepository
-from db.repositories.wardrobe_repo import WardrobeRepository
-from db.repositories.recommendation_repo import RecommendationRepository
-from db.repositories.tryon_repo import TryonRepository
+from db.repositories.wardrobe_repo import ClothesRepository, WardrobeRepository
 
 __all__ = [
-    "UserRepository", "WardrobeRepository",
-    "RecommendationRepository", "TryonRepository",
+    "UserRepository", "ClothesRepository", "WardrobeRepository",
 ]
