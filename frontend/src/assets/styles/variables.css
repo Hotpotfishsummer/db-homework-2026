@@ -14,6 +14,21 @@
   /* Content max widths */
   --content-max-width: 1400px;
   --card-max-width: 400px;
+
+  /* Mobile spacing */
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 20px;
+  --space-xl: 24px;
+
+  /* Mobile typography */
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-md: 16px;
+  --text-lg: 18px;
+  --text-xl: 24px;
+  --text-2xl: 28px;
 }
 
 /* Tablet and up */
@@ -35,5 +50,16 @@
 @media (min-width: 1280px) {
   :root {
     --sidebar-width: 80px;
+    --space-xs: 12px;
+    --space-sm: 16px;
+    --space-md: 20px;
+    --space-lg: 24px;
+    --space-xl: 32px;
+    --text-xs: 14px;
+    --text-sm: 16px;
+    --text-md: 18px;
+    --text-lg: 20px;
+    --text-xl: 28px;
+    --text-2xl: 36px;
   }
 }

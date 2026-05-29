@@ -39,8 +39,7 @@
 │   │   ├── services/       # 业务逻辑
 │   │   │   ├── weather.py      # 和风天气 API
 │   │   │   ├── outfit_ai.py    # DeepSeek 穿搭推荐
-│   │   │   ├── wardrobe_stub.py # 衣橱查询接口（待接入数据库）
-│   │   │   ├── vision.py       # 图片上传 + rembg 背景去除
+│   │   │   ├── garment_vision.py # 图片上传 + rembg 背景去除
 │   │   │   └── ai.py           # 每日小贴士（stub）
 │   │   └── static/         # 图片存储（raw + processed）
 │   ├── tests/
@@ -399,19 +398,17 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000
 
 #### 1. 衣橱查询
 
-**文件：** `backend/app/services/wardrobe_stub.py`
+`wardrobe_stub.py` 已移除 — 请直接使用 `ClothesRepository`（DB 已接入）。示例：
 
-**当前：** 返回 6 件 demo 衣服。
-
-**改为：**
 ```python
 from db import ClothesRepository
+from db.session import async_session
 
-async def get_by_ids(self, user_id: int, ids: list[int]) -> list[dict]:
-    async with async_session() as s:
-        repo = ClothesRepository(s)
-        items = await repo.get_by_ids(user_id, ids)
-        return [{"id": i.item_id, "category": i.category, "image_url": i.image_url, ...} for i in items]
+async def get_by_ids(user_id: int, ids: list[int]) -> list[dict]:
+  async with async_session() as s:
+    repo = ClothesRepository(s)
+    items = await repo.get_by_ids(user_id, ids)
+    return [{"id": i.item_id, "category": i.category, "image_url": i.image_url, "attributes": i.attributes} for i in items]
 ```
 
 #### 2. 衣服列表

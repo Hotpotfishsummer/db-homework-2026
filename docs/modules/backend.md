@@ -19,8 +19,7 @@ backend/
 │   ├── models/
 │   │   └── schemas.py       # Pydantic 请求/响应模型
 │   ├── services/            # 业务逻辑
-│   │   ├── wardrobe_stub.py # 衣物查询（待接入 DB）
-│   │   └── vision.py        # 图片处理 + rembg
+│   │   ├── garment_vision.py # 图片处理 + rembg
 │   └── static/              # 图片存储
 │       ├── raw/             # 原始上传
 │       └── processed/       # 去背景处理
@@ -32,8 +31,8 @@ backend/
 
 | 文件 | 职责 | 状态 |
 |------|------|------|
-| `wardrobe_stub.py` | 衣物查询（返回 demo 数据） | 待接入 DB |
-| `vision.py` | 图片上传 + rembg 背景去除 | 已完成 |
+| `ClothesRepository` | 衣物查询（DB 已接入） | 已完成 |
+| `garment_vision.py` | 图片上传 + rembg 背景去除 | 已完成 |
 
 ## API 路由
 
@@ -46,7 +45,7 @@ backend/
 
 ## 后端接入待办
 
-1. `wardrobe_stub.py` → `ClothesRepository`
+1. `wardrobe_stub.py` 已移除 → 使用 `ClothesRepository`（DB）
 2. `garments.py` → `ClothesRepository.list_by_user()`
 3. `user.py` → `UserRepository`
 

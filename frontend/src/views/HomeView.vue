@@ -1,8 +1,16 @@
 <template>
   <div class="home-container">
     <div class="home-header">
-      <h1>发现穿搭灵感</h1>
-      <p>AI 为你精选推荐</p>
+      <div class="header-left">
+        <h1>发现穿搭灵感</h1>
+        <p>AI 为你精选推荐</p>
+      </div>
+      <div class="header-right">
+        <div class="quick-action">
+          <span class="action-chip" @click="router.push('/add-cloth')">+ 录入衣服</span>
+          <span class="action-chip" @click="router.push('/outfit-match')">✨ AI 搭配</span>
+        </div>
+      </div>
     </div>
 
     <SceneSelector
@@ -203,9 +211,15 @@ const viewDetail = (outfit) => {
   padding-bottom: 100px;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
   .home-container {
+    display: flex;
+    flex-wrap: wrap;
     padding-bottom: 32px;
+  }
+
+  .home-header {
+    width: 100%;
   }
 }
 
@@ -216,6 +230,49 @@ const viewDetail = (outfit) => {
   border-radius: 0 0 30px 30px;
 }
 
+@media (min-width: 1024px) {
+  .home-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 32px 48px;
+    border-radius: 0;
+    width: 100%;
+  }
+
+  .home-header .header-left {
+    text-align: left;
+  }
+
+  .home-header .header-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+  }
+
+  .home-header .header-right .quick-action {
+    display: flex;
+    gap: 12px;
+  }
+
+  .home-header .header-right .action-chip {
+    padding: 10px 20px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 9999px;
+    font-size: 14px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+
+  .home-header .header-right .action-chip:active {
+    transform: scale(0.95);
+    background: rgba(255, 255, 255, 0.3);
+  }
+}
+
 .home-header h1 {
   font-size: 24px;
   font-weight: 600;
@@ -224,9 +281,26 @@ const viewDetail = (outfit) => {
   margin-bottom: 4px;
 }
 
+@media (min-width: 1024px) {
+  .home-header h1 {
+    font-size: var(--text-xl);
+    margin-bottom: 0;
+  }
+}
+
 .home-header p {
   font-size: 14px;
   letter-spacing: -0.224px;
   color: rgba(255, 255, 255, 0.8);
+}
+
+@media (min-width: 1024px) {
+  .home-header p {
+    font-size: 16px;
+  }
+}
+
+.home-header .header-right {
+  display: none;
 }
 </style>

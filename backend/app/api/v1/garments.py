@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import require_user
 from app.models.schemas import GarmentDetectionResponse, GarmentUploadResponse
-from app.services.vision import VisionService
+from app.services.garment_vision import VisionService
 from db import get_db, ClothesRepository, UserRepository
 
 router = APIRouter(prefix="/garments", tags=["garments"])

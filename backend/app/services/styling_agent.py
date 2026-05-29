@@ -6,7 +6,8 @@ from typing import Any
 
 from app.core.config import get_settings
 from app.services.weather import WeatherService
-from app.services.wardrobe_stub import WardrobeService
+from db.repositories.wardrobe_repo import ClothesRepository
+from db.session import async_session
 
 settings = get_settings()
 
@@ -32,11 +33,23 @@ class StylingAgentService:
 
     def __init__(self):
         self.weather_service = WeatherService()
-        self.wardrobe_service = WardrobeService()
+        # Wardrobe data now comes from the database via ClothesRepository
 
     async def generate_daily_tip(self, user_id: str | int | None = None, location: str | None = None) -> dict:
         weather = await self.weather_service.get_current(location=location or "深圳")
-        wardrobe_items = await self.wardrobe_service.get_by_ids(str(user_id) if user_id is not None else "0", [1, 2, 3])
+        # Fetch wardrobe items from DB for agent prompts
+        async with async_session() as session:
+            repo = ClothesRepository(session)
+            raw_items = await repo.get_by_ids(int(user_id) if user_id is not None else 0, [1, 2, 3])
+        wardrobe_items = [
+            {
+                "id": item.item_id,
+                "name": getattr(item, "name", ""),
+                "category": item.category,
+                "color": item.attributes.get("color") if item.attributes else None,
+            }
+            for item in raw_items
+        ]
 
         if not self._can_use_agent():
             return self._fallback_daily_tip(weather, wardrobe_items)
@@ -57,7 +70,18 @@ class StylingAgentService:
         location: str | None = None,
     ) -> dict:
         weather = await self.weather_service.get_current(location=location or "深圳")
-        clothes = await self.wardrobe_service.get_by_ids(str(user_id) if user_id is not None else "0", wardrobe_ids)
+        async with async_session() as session:
+            repo = ClothesRepository(session)
+            raw_clothes = await repo.get_by_ids(int(user_id) if user_id is not None else 0, wardrobe_ids)
+        clothes = [
+            {
+                "id": item.item_id,
+                "name": getattr(item, "name", ""),
+                "category": item.category,
+                "color": item.attributes.get("color") if item.attributes else None,
+            }
+            for item in raw_clothes
+        ]
 
         if not self._can_use_agent():
             return self._fallback_outfit(scene, clothes, weather)

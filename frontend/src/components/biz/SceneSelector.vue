@@ -9,7 +9,7 @@
         @click="$emit('update:modelValue', scene.id)"
       >
         <span class="scene-icon">{{ scene.icon }}</span>
-        <span>{{ scene.name }}</span>
+        <span class="scene-name">{{ scene.name }}</span>
       </div>
     </div>
   </div>
@@ -34,6 +34,31 @@ defineEmits(['update:modelValue'])
 .scene-selector {
   padding: 0 24px;
   margin-top: -10px;
+}
+
+/* Desktop: vertical sidebar */
+@media (min-width: 768px) {
+  .scene-selector {
+    width: 140px;
+    flex-shrink: 0;
+    padding: 20px 0;
+    margin-top: 0;
+  }
+
+  .scene-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-x: visible;
+    padding: 0;
+  }
+}
+
+/* Large desktop: wider sidebar */
+@media (min-width: 1280px) {
+  .scene-selector {
+    width: 180px;
+  }
 }
 
 .scene-tabs {
@@ -66,6 +91,17 @@ defineEmits(['update:modelValue'])
   transition: all 0.2s;
 }
 
+/* Desktop: full-width pills */
+@media (min-width: 768px) {
+  .scene-tab {
+    flex-shrink: unset;
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 12px;
+    justify-content: flex-start;
+  }
+}
+
 .scene-tab:active {
   transform: scale(0.95);
 }
@@ -78,5 +114,17 @@ defineEmits(['update:modelValue'])
 
 .scene-icon {
   font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  .scene-icon {
+    font-size: 20px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .scene-name {
+    font-size: 15px;
+  }
 }
 </style>
