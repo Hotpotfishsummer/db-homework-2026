@@ -70,6 +70,13 @@ const handleSheetAction = (type) => {
   z-index: 100;
 }
 
+/* Hide on tablet+ when sidebar is shown */
+@media (min-width: 768px) {
+  .bottom-nav {
+    display: none;
+  }
+}
+
 .nav-item {
   flex: 1;
   display: flex;

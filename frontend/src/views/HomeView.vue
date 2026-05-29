@@ -32,7 +32,7 @@ import { useAuthStore } from '../stores/auth'
 import { useUserStore } from '../stores/user'
 import { useWardrobeStore } from '../stores/wardrobe'
 import { useHaptics } from '../composables/useHaptics'
-import { getAIOutfit } from '../services/outfit'
+import { generateOutfit } from '../services/outfit'
 import BottomNav from '../components/BottomNav.vue'
 import SceneSelector from '../components/biz/SceneSelector.vue'
 import OutfitRecommendSection from '../components/biz/OutfitRecommendSection.vue'
@@ -116,10 +116,10 @@ const loadOutfits = async () => {
   const wardrobeIds = availableClothes.map(c => c.id)
 
   try {
-    const data = await getAIOutfit(selectedScene.value, wardrobeIds)
-    outfits.value = [{ ...data, clothes: availableClothes }]
+    const result = await generateOutfit({ scene: selectedScene.value, wardrobeIds })
+    outfits.value = (result.outfits || []).map(item => ({ ...item, clothes: availableClothes }))
   } catch (error) {
-    console.warn('AI API 调用失败，使用 Mock 数据:', error.message)
+    console.warn('搭配生成失败，使用 Mock 数据:', error.message)
     loadMockOutfits()
   }
 }
@@ -201,6 +201,12 @@ const viewDetail = (outfit) => {
   min-height: 100vh;
   background: var(--bg-secondary);
   padding-bottom: 100px;
+}
+
+@media (min-width: 1024px) {
+  .home-container {
+    padding-bottom: 32px;
+  }
 }
 
 .home-header {

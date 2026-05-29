@@ -57,6 +57,7 @@ logs/
 # 临时文件
 *.tmp
 .claude/
+tmp/
 
 # 文档（本地笔记，不提交）
 docs/guides/vscode-docker-debug.md

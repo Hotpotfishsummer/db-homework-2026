@@ -199,6 +199,35 @@ const onTouchEnd = (index, e) => {
   perspective: 1000px;
 }
 
+/* Desktop: horizontal layout */
+@media (min-width: 1024px) {
+  .outfit-card-container {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 24px;
+    height: auto;
+    perspective: none;
+  }
+
+  .outfit-card {
+    position: relative;
+    left: auto;
+    transform: none;
+    max-width: var(--card-max-width);
+  }
+
+  .outfit-card:not(:first-child) {
+    transform: none;
+    opacity: 1;
+  }
+
+  .swipe-hint {
+    display: none;
+  }
+}
+
 .outfit-card {
   position: absolute;
   width: 100%;

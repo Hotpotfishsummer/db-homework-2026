@@ -106,6 +106,12 @@ const toggleStatus = (cloth) => {
   padding-bottom: 100px;
 }
 
+@media (min-width: 1024px) {
+  .wardrobe-container {
+    padding-bottom: 32px;
+  }
+}
+
 .wardrobe-header {
   display: flex;
   justify-content: space-between;
@@ -181,6 +187,33 @@ const toggleStatus = (cloth) => {
   grid-template-columns: repeat(2, 1fr);
   gap: 16px;
   padding: 20px 24px;
+}
+
+/* Tablet */
+@media (min-width: 768px) {
+  .clothing-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    padding: 24px 32px;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+  .clothing-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    padding: 32px 48px;
+  }
+}
+
+/* Large desktop */
+@media (min-width: 1280px) {
+  .clothing-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 28px;
+    padding: 32px 64px;
+  }
 }
 
 .clothing-item {

@@ -1,0 +1,39 @@
+/* Responsive Breakpoints - Mobile First */
+/* Usage: @media (min-width: var(--bp-tablet)) {} */
+
+:root {
+  /* Breakpoints */
+  --bp-tablet: 768px;
+  --bp-desktop: 1024px;
+  --bp-large: 1280px;
+
+  /* Sidebar */
+  --sidebar-width: 80px;
+  --sidebar-width-expanded: 240px;
+
+  /* Content max widths */
+  --content-max-width: 1400px;
+  --card-max-width: 400px;
+}
+
+/* Tablet and up */
+@media (min-width: 768px) {
+  :root {
+    --sidebar-width: 80px;
+  }
+}
+
+/* Desktop and up */
+@media (min-width: 1024px) {
+  :root {
+    --sidebar-width: 80px;
+    --content-max-width: 1400px;
+  }
+}
+
+/* Large desktop */
+@media (min-width: 1280px) {
+  :root {
+    --sidebar-width: 80px;
+  }
+}

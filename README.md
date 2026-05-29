@@ -271,7 +271,7 @@ Authorization: Bearer {token}
 }
 ```
 
-> **状态：** 数据库模块已提供 `WardrobeRepository.list_by_user()`，后端接入即可返回真实数据。
+> **状态：** 数据库模块已提供 `ClothesRepository.list_by_user()`，后端接入即可返回真实数据。
 
 ---
 
@@ -288,7 +288,7 @@ Authorization: Bearer {token}
 }
 ```
 
-> **状态：** 数据库模块已提供 `WardrobeRepository.count_by_user()` 和 `UserRepository.get_by_id()`，后端接入即可。
+> **状态：** 数据库模块已提供 `ClothesRepository.count_by_user()` 和 `UserRepository.get_by_id()`，后端接入即可。
 
 **PATCH** `/api/v1/user/me`
 
@@ -313,7 +313,7 @@ Authorization: Bearer {token}
 }
 ```
 
-> **状态：** 当前为随机 demo tip，数据库已就绪，待接入天气 + LLM。
+> **状态：** 当前为随机 demo tip，数据库已收敛，待接入天气 + LLM。
 
 ---
 
@@ -342,19 +342,16 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000
 
 ### AI 搭配接口架构
 
-前端通过统一入口 `generateOutfit()` 调用搭配服务，`USE_MOCK` 标志控制 Mock / 真实后端切换：
+前端通过统一入口 `generateOutfit()` 调用搭配服务，当前仅保留本地 Mock 生成：
 
 ```
 前端 UI (OutfitMatchView)
   → Pinia store (outfit.js)
     → services/outfit.js → generateOutfit({ scene, weather, wardrobeIds })
-        ├── USE_MOCK=true  → generateOutfitMock()       [当前]
-        └── USE_MOCK=false → generateOutfitReal()       [后端就绪后]
-                                → getAIOutfit(scene, wardrobeIds)
-                                  → POST /api/v1/outfit/recommend
+      └── generateOutfitMock()       [当前]
 ```
 
-切换方式：`frontend/src/services/outfit.js` 中将 `USE_MOCK = false` 即可。
+切换方式：无需切换后端接口，当前仅使用本地 Mock 生成。
 
 ### 三阶段交互流程
 
@@ -368,8 +365,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000
 
 | 前端文件 | 调用接口 | 状态 |
 |----------|----------|------|
-| `services/outfit.js` | `POST /api/v1/outfit/recommend` | USE_MOCK=true 时走本地 Mock，切 false 直连后端 |
-| `services/outfit.js` | `GET /api/v1/outfit/{id}/reason` | 后端暂未实现此端点 |
+| `services/outfit.js` | 本地 Mock 生成搭配 | 不再依赖后端旧推荐接口 |
 
 ### 前端本地 Mock（暂未调后端）
 
@@ -381,23 +377,21 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000
 | 衣橱 CRUD | `stores/wardrobe.js` | `GET/POST/DELETE /garments` |
 | 用户资料 | `stores/user.js` + localStorage | `GET/PATCH /user/me` |
 | 收藏/历史 | `stores/user.js`（内存，刷新丢失）| 持久化接口 |
-| 每日小贴士 | 未调用 | `GET /daily-tips` |
-| AI 搭配生成 | `stores/outfit.js` + `services/outfit.js` (Mock) | `POST /api/v1/outfit/recommend`（已对齐，切 USE_MOCK 即用） |
+| 每日小贴士 | 已退役 | 无 |
+| AI 搭配生成 | `stores/outfit.js` + `services/outfit.js` (Mock) | 本地生成，不再请求后端旧接口 |
 
 ---
 
 ## 数据库模块说明
 
-数据库模块（`db/`）已完成开发，提供 4 张表、21 个 Repository 方法、Alembic 迁移管理。详见 `db/README.md`。
+数据库模块（`db/`）已收敛为 2 张核心表，并通过 Repository 与 Alembic 迁移管理。详见 `db/README.md`。
 
 ### 已完成的数据库能力
 
 | 能力 | 对应 API | 说明 |
 |------|----------|------|
 | 用户管理 | `UserRepository` | 注册、查询、更新、删除 |
-| 衣橱 CRUD | `WardrobeRepository` | 添加衣物、列表查询、JSONB 筛选（颜色/季节/分类）、批量查询、删除 |
-| 穿搭推荐存储 | `RecommendationRepository` | 保存推荐结果（天气快照 + LLM 分析 + 衣物 ID 列表） |
-| 试穿记录 | `TryonRepository` | 保存试穿结果（原图 + AI 合成图路径） |
+| 衣橱 CRUD | `ClothesRepository` | 添加衣物、列表查询、JSONB 筛选（颜色/季节/分类）、批量查询、删除 |
 
 ### 后端接入待办
 
@@ -411,45 +405,26 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000
 
 **改为：**
 ```python
-from db import WardrobeRepository
+from db import ClothesRepository
 
 async def get_by_ids(self, user_id: int, ids: list[int]) -> list[dict]:
     async with async_session() as s:
-        repo = WardrobeRepository(s)
+        repo = ClothesRepository(s)
         items = await repo.get_by_ids(user_id, ids)
         return [{"id": i.item_id, "category": i.category, "image_url": i.image_url, ...} for i in items]
 ```
 
-#### 2. 用户位置
-
-**文件：** `backend/app/api/v1/outfit.py:24`
-
-**当前：**
-```python
-weather = await weather_svc.get_current(location="深圳")
-```
-
-**改为：** 从数据库读取用户 `location` 字段。
-
-#### 3. 衣服列表
+#### 2. 衣服列表
 
 **文件：** `backend/app/api/v1/garments.py:26`
 
-**改为：** 调用 `WardrobeRepository.list_by_user(user_id)`
+**改为：** 调用 `ClothesRepository.list_by_user(user_id)`
 
-#### 4. 用户资料
+#### 3. 用户资料
 
 **文件：** `backend/app/api/v1/user.py`
 
 **改为：** `GET /me` 调用 `UserRepository.get_by_id()`；`PATCH /me` 调用 `UserRepository.update()`
-
-#### 5. 每日小贴士
-
-**文件：** `backend/app/services/ai.py`
-
-**改为：** 从数据库查询衣橱，结合天气 API + LLM 生成
-
----
 
 ## 技术栈版本
 

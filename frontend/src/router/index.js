@@ -13,6 +13,7 @@ import OutfitMatchView from '../views/OutfitMatchView.vue'
 import AddClothView from '../views/AddClothView.vue'
 import ProfileEditView from '../views/ProfileEditView.vue'
 import ProfileSettingsView from '../views/ProfileSettingsView.vue'
+import DesktopLayout from '../components/layout/DesktopLayout.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -32,64 +33,61 @@ const router = createRouter({
       component: RegisterView
     },
     {
-      path: '/home',
-      name: 'home',
-      component: HomeView,
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/wardrobe',
-      name: 'wardrobe',
-      component: WardrobeView,
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/profile',
-      name: 'profile',
-      component: ProfileView,
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/outfit/:id',
-      name: 'outfit-detail',
-      component: OutfitDetailView,
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/liked',
-      name: 'liked',
-      component: LikedView,
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/history',
-      name: 'history',
-      component: HistoryView,
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/add-cloth',
-      name: 'add-cloth',
-      component: AddClothView,
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/outfit-match',
-      name: 'outfit-match',
-      component: OutfitMatchView,
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/profile/edit',
-      name: 'profile-edit',
-      component: ProfileEditView,
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/profile/settings',
-      name: 'profile-settings',
-      component: ProfileSettingsView,
-      meta: { requiresAuth: true }
+      path: '/',
+      component: DesktopLayout,
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: 'home',
+          name: 'home',
+          component: HomeView
+        },
+        {
+          path: 'wardrobe',
+          name: 'wardrobe',
+          component: WardrobeView
+        },
+        {
+          path: 'profile',
+          name: 'profile',
+          component: ProfileView
+        },
+        {
+          path: 'outfit/:id',
+          name: 'outfit-detail',
+          component: OutfitDetailView
+        },
+        {
+          path: 'liked',
+          name: 'liked',
+          component: LikedView
+        },
+        {
+          path: 'history',
+          name: 'history',
+          component: HistoryView
+        },
+        {
+          path: 'add-cloth',
+          name: 'add-cloth',
+          component: AddClothView
+        },
+        {
+          path: 'outfit-match',
+          name: 'outfit-match',
+          component: OutfitMatchView
+        },
+        {
+          path: 'profile/edit',
+          name: 'profile-edit',
+          component: ProfileEditView
+        },
+        {
+          path: 'profile/settings',
+          name: 'profile-settings',
+          component: ProfileSettingsView
+        }
+      ]
     }
   ]
 })
