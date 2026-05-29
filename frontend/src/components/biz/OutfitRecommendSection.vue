@@ -23,7 +23,6 @@
           v-for="(outfit, index) in outfits"
           :key="outfit.id"
           class="outfit-card"
-          :style="{ zIndex: outfits.length - index }"
           @touchstart="onTouchStart"
           @touchmove="onTouchMove"
           @touchend="onTouchEnd(index, $event)"
@@ -111,6 +110,19 @@ const onTouchEnd = (index, e) => {
 <style scoped>
 .recommend-section {
   padding: 20px;
+  flex: 1;
+}
+
+@media (min-width: 768px) {
+  .recommend-section {
+    padding: 24px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .recommend-section {
+    padding: 32px;
+  }
 }
 
 .section-title {
@@ -122,6 +134,13 @@ const onTouchEnd = (index, e) => {
   letter-spacing: -0.374px;
   color: var(--text-primary);
   margin-bottom: 16px;
+}
+
+@media (min-width: 768px) {
+  .section-title {
+    font-size: 22px;
+    margin-bottom: 24px;
+  }
 }
 
 .title-icon {
@@ -199,6 +218,34 @@ const onTouchEnd = (index, e) => {
   perspective: 1000px;
 }
 
+/* Desktop: horizontal layout */
+@media (min-width: 768px) {
+  .outfit-card-container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+    height: auto;
+    perspective: none;
+    padding: 0;
+  }
+
+  .swipe-hint {
+    display: none;
+  }
+
+  .ai-generating {
+    height: 300px;
+  }
+}
+
+/* Large desktop: 3 columns */
+@media (min-width: 1280px) {
+  .outfit-card-container {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+  }
+}
+
 .outfit-card {
   position: absolute;
   width: 100%;
@@ -212,15 +259,43 @@ const onTouchEnd = (index, e) => {
   transition: transform 0.3s, opacity 0.3s;
 }
 
-.outfit-card:not(:first-child) {
-  transform: translateX(-50%) scale(0.95) translateY(10px);
-  opacity: 0.7;
+@media (min-width: 768px) {
+  .outfit-card {
+    position: relative;
+    left: auto;
+    transform: none;
+    border-radius: 20px;
+  }
+
+  .outfit-card:not(:first-child) {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@media (max-width: 766px) {
+  .outfit-card:not(:first-child) {
+    transform: translateX(-50%) scale(0.95) translateY(10px);
+    opacity: 0.7;
+  }
 }
 
 .card-image {
   position: relative;
   height: 280px;
   overflow: hidden;
+}
+
+@media (min-width: 768px) {
+  .card-image {
+    height: 300px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .card-image {
+    height: 320px;
+  }
 }
 
 .card-image img {
@@ -258,6 +333,12 @@ const onTouchEnd = (index, e) => {
   padding: 16px;
 }
 
+@media (min-width: 768px) {
+  .card-info {
+    padding: 20px;
+  }
+}
+
 .card-info h3 {
   font-size: 18px;
   font-weight: 600;
@@ -266,11 +347,23 @@ const onTouchEnd = (index, e) => {
   margin-bottom: 4px;
 }
 
+@media (min-width: 768px) {
+  .card-info h3 {
+    font-size: 20px;
+  }
+}
+
 .card-info p {
   font-size: 14px;
   letter-spacing: -0.224px;
   color: var(--text-secondary);
   margin-bottom: 12px;
+}
+
+@media (min-width: 768px) {
+  .card-info p {
+    font-size: 15px;
+  }
 }
 
 .ai-reason {
@@ -303,6 +396,18 @@ const onTouchEnd = (index, e) => {
   padding: 8px 20px 20px;
 }
 
+@media (min-width: 768px) {
+  .card-actions {
+    padding: 12px 24px 24px;
+    gap: 28px;
+  }
+
+  .card-actions button {
+    width: 52px;
+    height: 52px;
+  }
+}
+
 .card-actions button {
   width: 48px;
   height: 48px;
@@ -314,6 +419,12 @@ const onTouchEnd = (index, e) => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+@media (min-width: 768px) {
+  .card-actions button:hover {
+    transform: scale(1.1);
+  }
 }
 
 .action-detail {
@@ -395,5 +506,28 @@ const onTouchEnd = (index, e) => {
 .card-leave-to {
   opacity: 0;
   transform: translateX(-50%) scale(0.8);
+}
+
+/* Desktop: disable card stack animations */
+@media (min-width: 768px) {
+  .card-enter-active,
+  .card-leave-active {
+    transition: opacity 0.3s ease;
+    position: relative;
+  }
+
+  .card-enter-from,
+  .card-leave-to {
+    opacity: 0;
+    transform: none;
+  }
+
+  .card-enter-active {
+    transition: opacity 0.3s ease;
+  }
+
+  .card-leave-active {
+    transition: opacity 0.2s ease;
+  }
 }
 </style>

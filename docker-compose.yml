@@ -1,0 +1,98 @@
+x-proxy-env: &proxy_env
+  HTTP_PROXY: ${HTTP_PROXY:-http://127.0.0.1:7890}
+  HTTPS_PROXY: ${HTTPS_PROXY:-http://127.0.0.1:7890}
+  http_proxy: ${HTTP_PROXY:-http://127.0.0.1:7890}
+  https_proxy: ${HTTPS_PROXY:-http://127.0.0.1:7890}
+  NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,backend,frontend,postgres}
+  no_proxy: ${NO_PROXY:-localhost,127.0.0.1,backend,frontend,postgres}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-l_wardrobe}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-l_wardrobe}"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - backend/.env
+    environment:
+      <<: *proxy_env
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-l_wardrobe}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_API_BASE: ${LLM_API_BASE:-https://api.openai.com/v1}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.2}
+      LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-800}
+      AGENT_MAX_ITERATIONS: ${AGENT_MAX_ITERATIONS:-3}
+    volumes:
+      - ./backend:/app/backend
+      - ./db:/app/db
+    ports:
+      - "8000:8000"
+      - "5678:5678"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/health').status)\""
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: *proxy_env
+      VITE_API_BASE_URL: /api/v1
+      VITE_BACKEND_PROXY_TARGET: http://backend:8000
+    volumes:
+      - ./frontend:/app/frontend
+      - frontend-node-modules:/app/frontend/node_modules
+    ports:
+      - "5173:5173"
+      - "9229:9229"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:5173').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:
+  frontend-node-modules:

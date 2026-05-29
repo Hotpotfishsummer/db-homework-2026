@@ -44,13 +44,39 @@ DEEPSEEK_API_KEY=sk-your_key
 DEBUG=true
 ```
 
-**数据库** (`db/.env`)：
+**数据库** (`backend/.env`)：
 
 ```bash
-DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
+# 本地 PostgreSQL（推荐）
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/l_wardrobe
+
+# Neon / 云数据库（兼容保留）
+# DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require&channel_binding=require
 ```
 
 详细配置见 [数据库模块文档](../modules/db.md)。
+
+### 4.1 Docker Compose 本地开发
+
+如果你想直接起三容器联调环境，先准备好 [backend/.env](../../backend/.env) 的本地配置，然后在仓库根目录执行：
+
+```bash
+docker compose up --build backend
+docker compose up --build frontend
+```
+
+相关辅助命令：
+
+```bash
+docker compose logs -f
+docker compose down --remove-orphans
+```
+
+VS Code 里也可以直接使用 `Frontend: Dev`、`Backend: Compose Up`、`Frontend: Compose Up`、`Compose: Logs`、`Compose: Down` 这几个任务。
+
+`Backend: Compose Up` 和 `Frontend: Compose Up` 会在集成终端里分别启动对应容器并持续输出日志，适合配合调试器使用。
+
+如果你只需要一份不依赖具体调试配置的 Docker 启动说明，可以参考 [Docker 服务启动指南](./docker-services.md)。
 
 ### 5. 初始化数据库
 

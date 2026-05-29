@@ -2,42 +2,51 @@
 
 ## 概述
 
-独立的 PostgreSQL 异步数据库层，SQLAlchemy 2.0 async ORM，提供 4 张表、21 个 Repository 方法、Alembic 迁移管理。可直接通过文件夹导入使用，无需 `pip install`。
+独立的 PostgreSQL 异步数据库层，当前主线以本地 PostgreSQL 为默认接入方式，Neon 等云数据库方案仅作为兼容保留。数据库连接、迁移和运行时配置统一围绕 `backend/.env` 管理。
 
-## 快速使用
+当前主线数据库已收敛为 `users` 和 `clothes` 两张核心表，衣物标签通过 JSONB 扩展字段保存，旧的推荐和试穿持久化表已退役。
 
-```python
-from db import get_db, UserRepository, WardrobeRepository, async_session
+## 环境配置
 
-async def example():
-    async with async_session() as s:
-        ur = UserRepository(s)
-        wr = WardrobeRepository(s)
-        # 使用...
+建议先复制 `backend/.env.example` 为 `backend/.env`，然后配置数据库连接：
+
+```bash
+# 本地 PostgreSQL（推荐）
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/l_wardrobe
+
+# Neon / 云数据库（兼容保留）
+# DATABASE_URL=postgresql://<user>:<password>@<host>/<dbname>?sslmode=require&channel_binding=require
 ```
 
-## 数据表
+数据库相关依赖已统一放入 [backend/environment.yml](../../backend/environment.yml)。
 
-| 表 | 用途 | 主要字段 |
-|-----|------|----------|
-| `users` | 用户信息 | user_id, username, password_hash, display_name, style_preference, location |
-| `wardrobe_items` | 衣橱 | item_id, user_id, image_url, category, attributes (JSONB) |
-| `outfit_recommendations` | 穿搭推荐 | recommend_id, user_id, weather_context (JSONB), analysis_doc, selected_items (JSONB) |
-| `tryon_results` | 虚拟试穿 | tryon_id, user_id, base_image_url, result_image_url |
+## 数据库初始化
 
-## Alembic 迁移
+目标数据库需要先存在，然后执行迁移完成建表与初始化：
+
+```bash
+alembic -c db/alembic.ini upgrade head
+```
+
+如果需要查看当前迁移版本，可以执行：
+
+```bash
+alembic -c db/alembic.ini current
+```
+
+## 日常迁移
 
 ```bash
 # 生成新迁移
-alembic -c db/alembic.ini revision --autogenerate -m "描述"
+alembic -c db/alembic.ini revision --autogenerate -m "describe change"
 
 # 应用迁移
 alembic -c db/alembic.ini upgrade head
 
-# 回滚
+# 回滚一个版本
 alembic -c db/alembic.ini downgrade -1
 ```
 
-## 详细文档
+## 详细说明
 
-完整 Repository API 参考、JSONB 查询示例、连接池配置见 [db/README.md](../../db/README.md)。
+模型、Repository、迁移环境和连接兼容逻辑的后续细节，统一参考 [db/README.md](../../db/README.md)。

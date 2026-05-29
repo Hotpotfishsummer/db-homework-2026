@@ -16,6 +16,9 @@ onMounted(() => {
 </script>
 
 <style>
+/* Import responsive variables */
+@import './assets/styles/variables.css';
+
 /* Apple Design System - Light Theme */
 :root {
   --bg-primary: #ffffff;

@@ -2,30 +2,24 @@
 
 ## 概述
 
-FastAPI 异步 Web 服务，提供 AI 穿搭推荐、天气查询、图片处理等 REST API。
+FastAPI 异步 Web 服务，当前只保留用户、衣物上传与图片处理相关 REST API。旧的穿搭推荐和每日小贴士接口已退役。
 
 ## 目录结构
 
 ```
 backend/
-├── main.py                  # FastAPI 入口，4 个 v1 路由
+├── main.py                  # FastAPI 入口，当前只注册 garments 和 user 两个 v1 路由
 ├── app/
 │   ├── api/v1/              # API 路由
-│   │   ├── garments.py      # 衣橱 CRUD
-│   │   ├── user.py          # 用户管理
-│   │   ├── daily_tips.py     # 每日小贴士
-│   │   └── outfit.py        # AI 穿搭推荐
+│   │   ├── garments.py      # 衣物上传与查询
+│   │   └── user.py          # 用户管理
 │   ├── core/
 │   │   ├── config.py        # Pydantic 设置
 │   │   └── security.py      # 认证占位
 │   ├── models/
 │   │   └── schemas.py       # Pydantic 请求/响应模型
 │   ├── services/            # 业务逻辑
-│   │   ├── weather.py       # 和风天气 API
-│   │   ├── outfit_ai.py     # DeepSeek 穿搭推荐
-│   │   ├── wardrobe_stub.py # 衣橱查询（待接入 DB）
-│   │   ├── vision.py        # 图片处理 + rembg
-│   │   └── ai.py            # 每日小贴士
+│   │   ├── garment_vision.py # 图片处理 + rembg
 │   └── static/              # 图片存储
 │       ├── raw/             # 原始上传
 │       └── processed/       # 去背景处理
@@ -37,30 +31,23 @@ backend/
 
 | 文件 | 职责 | 状态 |
 |------|------|------|
-| `weather.py` | 和风天气 API 调用 | 已完成 |
-| `outfit_ai.py` | DeepSeek LLM 穿搭生成 | 已完成 |
-| `wardrobe_stub.py` | 衣橱查询（返回 demo 数据） | 待接入 DB |
-| `vision.py` | 图片上传 + rembg 背景去除 | 已完成 |
-| `ai.py` | 每日小贴士（随机 demo） | 待接入 DB |
+| `ClothesRepository` | 衣物查询（DB 已接入） | 已完成 |
+| `garment_vision.py` | 图片上传 + rembg 背景去除 | 已完成 |
 
 ## API 路由
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/v1/outfit/recommend` | POST | AI 穿搭推荐 |
 | `/api/v1/garments/upload` | POST | 图片上传 |
-| `/api/v1/garments/` | GET | 衣橱列表 |
+| `/api/v1/garments/detect` | POST | 图片中是否包含衣物 |
+| `/api/v1/garments/` | GET | 衣物列表 |
 | `/api/v1/user/me` | GET/PATCH | 用户信息 |
-| `/api/v1/daily-tips/` | GET | 每日小贴士 |
 
 ## 后端接入待办
 
-详见 [根目录 README](../README.md#后端接入待办)：
-
-1. `wardrobe_stub.py` → `WardrobeRepository`
-2. 用户位置从 DB 读取（当前写死"深圳"）
-3. `garments.py` → `WardrobeRepository.list_by_user()`
-4. `user.py` → `UserRepository`
+1. `wardrobe_stub.py` 已移除 → 使用 `ClothesRepository`（DB）
+2. `garments.py` → `ClothesRepository.list_by_user()`
+3. `user.py` → `UserRepository`
 
 ## 详细文档
 
