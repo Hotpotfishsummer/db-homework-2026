@@ -13,6 +13,7 @@
 ## 快速导航
 
 - [环境搭建](./guides/setup.md) — 10 分钟启动开发环境
+- [Docker 服务启动](./guides/docker-services.md) — 抽象版 Docker Compose 启动说明
 - [部署指南](./guides/deployment.md) — 生产环境部署
 - [贡献规范](./guides/contributing.md) — Git 工作流与代码规范
 - [架构概述](./architecture/overview.md) — 系统组件与模块职责

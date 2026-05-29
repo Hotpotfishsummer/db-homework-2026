@@ -76,6 +76,8 @@ VS Code 里也可以直接使用 `Frontend: Dev`、`Backend: Compose Up`、`Fron
 
 `Backend: Compose Up` 和 `Frontend: Compose Up` 会在集成终端里分别启动对应容器并持续输出日志，适合配合调试器使用。
 
+如果你只需要一份不依赖具体调试配置的 Docker 启动说明，可以参考 [Docker 服务启动指南](./docker-services.md)。
+
 ### 5. 初始化数据库
 
 ```bash
