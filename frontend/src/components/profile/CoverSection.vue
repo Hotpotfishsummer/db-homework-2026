@@ -70,7 +70,6 @@ const props = defineProps({
   likedCount: { type: Number, default: 0 },
   wardrobeCount: { type: Number, default: 0 },
   historyCount: { type: Number, default: 0 },
-  pullDistance: { type: Number, default: 0 },
   uploading: { type: Boolean, default: false }
 })
 
@@ -86,10 +85,8 @@ const uploadError = ref('')
 
 const initial = computed(() => props.username?.charAt(0)?.toUpperCase() || 'U')
 
-const baseCoverHeight = 240
 const coverStyle = computed(() => {
-  const h = baseCoverHeight + props.pullDistance
-  const style = { height: h + 'px' }
+  const style = { height: '240px' }
   if (userStore.profile.coverImage) {
     style.backgroundImage = `url(${userStore.profile.coverImage})`
     style.backgroundSize = 'cover'
@@ -171,9 +168,17 @@ defineExpose({ coverBgRef })
   position: absolute;
   bottom: 12px;
   left: 116px;
+  right: 56px;
   z-index: 5;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+}
+
+@media (max-width: 380px) {
+  .cover-user-info {
+    left: 96px;
+  }
 }
 
 .cover-username {
@@ -183,6 +188,10 @@ defineExpose({ coverBgRef })
   color: var(--on-primary);
   text-shadow: 0 1px 6px rgba(0,0,0,0.4);
   line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
 }
 
 .cover-membership {
@@ -307,6 +316,12 @@ defineExpose({ coverBgRef })
   background: var(--bg-card);
   padding: 10px 24px 14px 118px;
   min-height: 50px;
+}
+
+@media (max-width: 380px) {
+  .bio-bar {
+    padding-left: 96px;
+  }
 }
 
 .stats-inline {
