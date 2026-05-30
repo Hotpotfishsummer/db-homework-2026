@@ -93,16 +93,37 @@ const router = createRouter({
   ]
 })
 
+let devSkipLoginChecked = false
+
+async function checkDevSkipLogin() {
+  if (!import.meta.env.DEV || devSkipLoginChecked) return
+  devSkipLoginChecked = true
+  try {
+    const res = await fetch('/.dev_skip_login')
+    if (res.ok) {
+      const mockToken = 'dev-token-' + Date.now()
+      const mockUser = { id: 0, username: 'dev_user', nickname: '开发者' }
+      localStorage.setItem('token', mockToken)
+      localStorage.setItem('currentUser', JSON.stringify(mockUser))
+    }
+  } catch {}
+}
+
 router.beforeEach(async (to, from, next) => {
+  await checkDevSkipLogin()
+
   const authStore = useAuthStore()
   const isAuthenticated = authStore.checkAuth()
 
   if (isAuthenticated) {
-    try {
-      await authStore.validateSession()
-    } catch {
-      next('/login')
-      return
+    const isDevToken = import.meta.env.DEV && authStore.token?.startsWith('dev-token-')
+    if (!isDevToken) {
+      try {
+        await authStore.validateSession()
+      } catch {
+        next('/login')
+        return
+      }
     }
   }
 
