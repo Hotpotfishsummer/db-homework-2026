@@ -5,6 +5,12 @@
       <span class="count">{{ wardrobeStore.filteredClothes.length }} 件单品</span>
     </div>
 
+    <div v-if="wardrobeStore.error && wardrobeStore.clothes.length > 0" class="wardrobe-banner error-banner">
+      <span>⚠️</span>
+      <p>{{ wardrobeStore.error }}</p>
+      <button class="banner-retry" @click="reloadWardrobe">重试</button>
+    </div>
+
     <div class="category-tabs">
       <div
         v-for="cat in wardrobeStore.categories"
@@ -18,7 +24,20 @@
       </div>
     </div>
 
-    <div class="clothing-grid" v-if="wardrobeStore.filteredClothes.length > 0">
+    <div v-if="wardrobeStore.loading && wardrobeStore.clothes.length === 0" class="state-panel loading-state">
+      <span class="state-icon">⏳</span>
+      <p class="state-title">正在加载衣橱</p>
+      <p class="state-hint">正在从后端读取你的真实衣物数据</p>
+    </div>
+
+    <div v-else-if="wardrobeStore.error && wardrobeStore.clothes.length === 0" class="state-panel error-state">
+      <span class="state-icon">⚠️</span>
+      <p class="state-title">衣橱加载失败</p>
+      <p class="state-hint">{{ wardrobeStore.error }}</p>
+      <button class="retry-btn" @click="reloadWardrobe">重试</button>
+    </div>
+
+    <div class="clothing-grid" v-else-if="wardrobeStore.filteredClothes.length > 0">
       <TransitionGroup name="grid">
         <div
           v-for="cloth in wardrobeStore.filteredClothes"
@@ -73,13 +92,17 @@ const { trigger } = useHaptics()
 
 const selectedCloth = ref(null)
 
-onMounted(() => {
+const reloadWardrobe = async () => {
+  await wardrobeStore.refreshWardrobe()
+}
+
+onMounted(async () => {
   authStore.checkAuth()
   if (!authStore.isAuthenticated) {
     router.push('/login')
     return
   }
-  wardrobeStore.initMockData()
+  await reloadWardrobe()
 })
 
 const selectCategory = (id) => {
@@ -118,6 +141,65 @@ const toggleStatus = (cloth) => {
   align-items: center;
   padding: 50px 24px 16px;
   background: var(--bg-card);
+}
+
+.wardrobe-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 24px 16px;
+  padding: 12px 16px;
+  border-radius: 14px;
+}
+
+.error-banner {
+  background: rgba(255, 77, 79, 0.08);
+  color: #cf1322;
+}
+
+.wardrobe-banner p {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.banner-retry,
+.retry-btn {
+  border: none;
+  border-radius: 9999px;
+  padding: 8px 14px;
+  background: var(--accent-color);
+  color: var(--on-primary);
+  cursor: pointer;
+}
+
+.state-panel {
+  margin: 24px;
+  padding: 40px 24px;
+  border-radius: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--hairline);
+  text-align: center;
+}
+
+.state-icon {
+  display: block;
+  font-size: 42px;
+  margin-bottom: 12px;
+}
+
+.state-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.state-hint {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 16px;
 }
 
 .wardrobe-header h1 {

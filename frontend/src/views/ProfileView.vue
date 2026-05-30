@@ -172,10 +172,10 @@ const getBodyShapeName = (id) => bodyShapes.find(b => b.id === id)?.name || ''
 const getStyleTagName = (id) => styleTags.find(t => t.id === id)?.name || id
 
 // ---- Lifecycle ----
-onMounted(() => {
+onMounted(async () => {
   authStore.checkAuth()
   if (!authStore.isAuthenticated) { router.push('/login'); return }
-  wardrobeStore.initMockData()
+  await wardrobeStore.refreshWardrobe()
   userStore.loadProfile()
   window.addEventListener('scroll', onScroll)
   containerRef.value?.addEventListener('touchmove', onTouchMove, { passive: false })

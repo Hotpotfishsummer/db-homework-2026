@@ -3,5 +3,6 @@
  */
 
 export * from './api'
+export * from './auth'
 export * from './outfit'
 export * from './user'

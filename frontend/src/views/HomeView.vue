@@ -34,7 +34,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useUserStore } from '../stores/user'
@@ -68,13 +68,13 @@ const getSceneName = computed(() => {
   return scene ? scene.name : '推荐'
 })
 
-onMounted(() => {
+onMounted(async () => {
   authStore.checkAuth()
   if (!authStore.isAuthenticated) {
     router.push('/login')
     return
   }
-  wardrobeStore.initMockData()
+  await wardrobeStore.refreshWardrobe()
   loadMockOutfits()
 })
 
@@ -106,6 +106,10 @@ const getSceneChinese = (scene) => {
 }
 
 const loadOutfits = async () => {
+  if (!wardrobeStore.clothes.length && !wardrobeStore.loading) {
+    await wardrobeStore.refreshWardrobe()
+  }
+
   const availableClothes = wardrobeStore.availableClothes
   const availableCount = availableClothes.length
 

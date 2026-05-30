@@ -3,7 +3,10 @@
     <div class="page-header">
       <button class="nav-back" @click="goBack">←</button>
       <h1>录入新单品</h1>
-      <button class="save-btn" @click="saveCloth" :disabled="!canSave">保存</button>
+      <button class="save-btn" @click="saveCloth" :disabled="!canSave">
+  <span v-if="isUploading">上传中...</span>
+  <span v-else>保存</span>
+</button>
     </div>
 
     <div class="form-content">
@@ -39,6 +42,8 @@
           style="display: none"
         />
       </div>
+
+      <div v-if="uploadError" class="upload-error">{{ uploadError }}</div>
 
       <!-- 衣服名称 -->
       <div class="form-group">
@@ -93,6 +98,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWardrobeStore } from '../stores/wardrobe'
 import { useHaptics } from '../composables/useHaptics'
+import { uploadGarment } from '../services/garment'
 
 const router = useRouter()
 const wardrobeStore = useWardrobeStore()
@@ -104,9 +110,12 @@ const previewImage = ref('')
 const clothName = ref('')
 const selectedCategory = ref('top')
 const selectedColor = ref('#ffffff')
+const isUploading = ref(false)
+const uploadError = ref('')
 
 const categories = [
   { id: 'top', name: '上装', icon: '👕' },
+  { id: 'outerwear', name: '外套', icon: '🧥' },
   { id: 'bottom', name: '下装', icon: '👖' },
   { id: 'shoes', name: '鞋靴', icon: '👟' },
   { id: 'accessory', name: '配饰', icon: '💍' },
@@ -129,7 +138,7 @@ const colors = [
 ]
 
 const canSave = computed(() => {
-  return clothName.value.trim() && (previewImage.value || selectedColor.value)
+  return clothName.value.trim() && previewImage.value && !isUploading.value
 })
 
 const goBack = () => {
@@ -156,23 +165,58 @@ const handleFileSelect = (event) => {
   }
 }
 
-const saveCloth = () => {
-  if (!canSave.value) return
+const saveCloth = async () => {
+  if (!canSave.value || isUploading.value) return
 
   trigger('success')
+  isUploading.value = true
+  uploadError.value = ''
 
-  // 生成随机图片 URL（模拟真实场景）
-  const randomImage = `https://picsum.photos/200?random=${Date.now()}`
+  try {
+    const file = fileInput.value?.files?.[0] || galleryInput.value?.files?.[0]
+    if (!file) {
+      uploadError.value = '请先选择图片'
+      return
+    }
 
-  wardrobeStore.addCloth({
-    name: clothName.value,
-    category: selectedCategory.value,
-    color: selectedColor.value,
-    image: previewImage.value || randomImage,
-    status: 'available'
-  })
+    const result = await uploadGarment(file)
 
-  router.push('/wardrobe')
+    if (result.code !== 200) {
+      uploadError.value = result.msg
+      return
+    }
+
+    const { garment, analysis } = result.data
+
+    if (!garment) {
+      uploadError.value = '未检测到衣服，请上传包含衣服的图片'
+      return
+    }
+
+    // 同步到后端后刷新衣橱列表（确保数据与后端一致）
+    try {
+      await wardrobeStore.refreshWardrobe()
+    } catch (e) {
+      // 若刷新失败，仍然把新项临时加入本地展示
+      wardrobeStore.addCloth({
+        ...wardrobeStore.normalizeGarment({
+          ...garment,
+          category: analysis?.category || selectedCategory.value,
+          attributes: {
+            ...analysis,
+            source_filename: clothName.value || garment?.attributes?.source_filename || '新单品',
+            color: selectedColor.value,
+          },
+        }),
+      })
+    }
+
+    router.push('/wardrobe')
+  } catch (error) {
+    uploadError.value = '上传失败，请重试'
+  } finally {
+    isUploading.value = false
+  }
 }
 </script>
 
@@ -297,6 +341,16 @@ const saveCloth = () => {
 .upload-divider {
   font-size: 14px;
   color: var(--text-tertiary);
+}
+
+.upload-error {
+  color: #ef4444;
+  font-size: 13px;
+  text-align: center;
+  padding: 8px 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 8px;
+  margin-bottom: 16px;
 }
 
 .form-group {

@@ -188,6 +188,13 @@ App running at:
 
 ---
 
+## 开发便利：跳过登录（可选）
+
+在开发模式下，你可以在 `frontend/public` 目录放置一个名为 `.dev_skip_login` 的空文件来启用自动 mock 登录（仅本地开发有效）。当存在该文件时，应用会生成一个随机的开发 token 并在 localStorage 中写入一个 mock `currentUser`，以便快速进入 UI 页面进行调试。
+
+注意：该文件已被加入项目 `.gitignore`，不会被提交到仓库；该功能仅在 `import.meta.env.DEV` 时启用，不会影响生产构建。
+
+
 ## 📖 开发规范
 
 ### 命名约定

@@ -14,6 +14,7 @@ import AddClothView from '../views/AddClothView.vue'
 import ProfileEditView from '../views/ProfileEditView.vue'
 import ProfileSettingsView from '../views/ProfileSettingsView.vue'
 import DesktopLayout from '../components/layout/DesktopLayout.vue'
+import { useAuthStore } from '../stores/auth'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -92,8 +93,19 @@ const router = createRouter({
   ]
 })
 
-router.beforeEach((to, from, next) => {
-  const isAuthenticated = localStorage.getItem('token')
+router.beforeEach(async (to, from, next) => {
+  const authStore = useAuthStore()
+  const isAuthenticated = authStore.checkAuth()
+
+  if (isAuthenticated) {
+    try {
+      await authStore.validateSession()
+    } catch {
+      next('/login')
+      return
+    }
+  }
+
   if (to.meta.requiresAuth && !isAuthenticated) {
     next('/login')
   } else if ((to.path === '/login' || to.path === '/register') && isAuthenticated) {
