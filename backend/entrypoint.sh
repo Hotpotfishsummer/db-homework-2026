@@ -1,5 +1,8 @@
 #!/bin/sh
-set -eu
+
+# Use separate set calls to avoid compatibility issues with some /bin/sh variants
+set -e
+set -u
 
 DB_HOST="${DB_HOST:-postgres}"
 DB_PORT="${DB_PORT:-5432}"
@@ -26,6 +29,6 @@ while True:
         time.sleep(1)
 PY
 
-alembic -c db/alembic.ini upgrade head
+alembic -c db/alembic.ini upgrade heads
 
 exec "$@"

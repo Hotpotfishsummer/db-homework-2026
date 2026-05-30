@@ -9,7 +9,7 @@ class GarmentUpload(BaseModel):
     category: Literal["top", "bottom", "outerwear", "shoes", "accessory"]
     color: str | None = None
     season: Literal["spring", "summer", "autumn", "winter", "all"] = "all"
-    tags: list[str] = []
+    tags: list[str] = Field(default_factory=list)
 
 
 class GarmentResponse(BaseModel):
@@ -33,10 +33,53 @@ class DailyTipResponse(BaseModel):
 
 class UserProfile(BaseModel):
     """Schema for user profile."""
-    user_id: str
+    user_id: int
+    username: str
     display_name: str | None = None
     style_preference: str | None = None
     location: str | None = None
+    wardrobe_count: int = 0
+    created_at: datetime | None = None
+
+
+class UserProfileUpdate(BaseModel):
+    """Schema for updating user profile."""
+    display_name: str | None = None
+    style_preference: str | None = None
+    location: str | None = None
+
+
+class AuthRegisterRequest(BaseModel):
+    """Schema for user registration."""
+    username: str
+    password: str
+    display_name: str | None = None
+    style_preference: str | None = None
+    location: str | None = None
+
+
+class AuthLoginRequest(BaseModel):
+    """Schema for user login."""
+    username: str
+    password: str
+
+
+class AuthUserResponse(BaseModel):
+    """Schema for authenticated user response."""
+    user_id: int
+    username: str
+    display_name: str | None = None
+    style_preference: str | None = None
+    location: str | None = None
+    wardrobe_count: int = 0
+    created_at: datetime | None = None
+
+
+class AuthResponse(BaseModel):
+    """Schema for auth response."""
+    access_token: str
+    token_type: str = "bearer"
+    user: AuthUserResponse
 
 
 class OutfitRecommendRequest(BaseModel):

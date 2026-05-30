@@ -1,31 +1,41 @@
 import io
 import base64
 import json
+import logging
+import time
+import uuid
 from pathlib import Path
 
-from fastapi import UploadFile
-from PIL import Image
+from PIL import Image, ImageOps
 
 from app.core.config import get_settings
 
-RAW_DIR = Path("app/static/raw")
-PROCESSED_DIR = Path("app/static/processed")
+GARMENT_DIR = Path("app/static/garments")
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 class VisionService:
     """Handles garment image ingestion: background removal and persistence."""
 
     def __init__(self):
-        RAW_DIR.mkdir(parents=True, exist_ok=True)
-        PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+        GARMENT_DIR.mkdir(parents=True, exist_ok=True)
 
     async def process_image(self, content: bytes, filename: str | None = None) -> dict:
-        """Save raw image bytes and run background removal via rembg if available."""
-        raw_path = RAW_DIR / Path(filename or "unknown").name
-        raw_path.write_bytes(content)
+        """Convert the upload to a single webp file and optionally remove its background."""
+        started_at = time.perf_counter()
+        original_name = Path(filename or "unknown").stem
+        stored_name = f"{original_name}-{uuid.uuid4().hex[:8]}.webp"
+        stored_path = GARMENT_DIR / stored_name
+        logger.info(
+            "Vision image ingestion started: filename=%s size_bytes=%s target=%s",
+            original_name,
+            len(content),
+            stored_path,
+        )
 
-        processed_path = PROCESSED_DIR / f"no_bg_{raw_path.name}"
+        image = Image.open(io.BytesIO(content))
+        image = self._prepare_image(image)
 
         # Import rembg lazily so backend startup is not blocked by optional runtime deps.
         remove_fn = None
@@ -34,25 +44,64 @@ class VisionService:
         except BaseException:
             remove_fn = None
 
+        bg_removed = False
         if remove_fn is not None:
-            input_image = Image.open(io.BytesIO(content))
-            output_image = remove_fn(input_image)
-            output_image.save(processed_path)
+            removed = remove_fn(image)
+            image = self._coerce_image(removed)
             bg_removed = True
+            logger.info("Background removal completed for %s", original_name)
         else:
-            # Graceful fallback — just copy raw if rembg isn't ready
-            processed_path.write_bytes(content)
-            bg_removed = False
+            logger.warning("Background removal skipped for %s because rembg is unavailable", original_name)
+
+        image = self._ensure_webp_mode(image)
+        image.save(stored_path, format="WEBP", quality=82, method=6, optimize=True)
+
+        logger.info(
+            "Vision image ingestion finished: filename=%s stored_path=%s public_url=%s bg_removed=%s elapsed_ms=%.2f",
+            original_name,
+            stored_path,
+            f"/static/garments/{stored_name}",
+            bg_removed,
+            (time.perf_counter() - started_at) * 1000,
+        )
 
         return {
-            "raw_path": str(raw_path),
-            "processed_path": str(processed_path),
+            "stored_path": str(stored_path),
+            "public_url": f"/static/garments/{stored_name}",
+            "format": "webp",
             "bg_removed": bg_removed,
+            "original_name": original_name,
         }
+
+    def _coerce_image(self, value: bytes | Image.Image) -> Image.Image:
+        if isinstance(value, Image.Image):
+            value.load()
+            return value
+
+        if isinstance(value, (bytes, bytearray)):
+            image = Image.open(io.BytesIO(value))
+            image.load()
+            return image
+
+        raise TypeError(f"Unsupported image type: {type(value)!r}")
+
+    def _prepare_image(self, image: Image.Image) -> Image.Image:
+        image = ImageOps.exif_transpose(image)
+        if image.mode not in ("RGB", "RGBA"):
+            image = image.convert("RGBA" if "A" in image.getbands() else "RGB")
+        return image
+
+    def _ensure_webp_mode(self, image: Image.Image) -> Image.Image:
+        if image.mode not in ("RGB", "RGBA"):
+            return image.convert("RGBA" if "A" in image.getbands() else "RGB")
+        return image
 
     async def analyze_garment(self, image_bytes: bytes) -> dict:
         """Analyze if image contains a garment using multimodal LLM."""
+        started_at = time.perf_counter()
+        logger.info("Vision garment analysis started: size_bytes=%s", len(image_bytes))
         if not self._can_use_vision():
+            logger.warning("Vision garment analysis skipped because vision config is unavailable")
             return {
                 "contains_garment": False,
                 "confidence": 0.0,
@@ -96,7 +145,14 @@ class VisionService:
 
             import json
             result_text = response.choices[0].message.content.strip()
+            logger.debug("Vision garment analysis raw response: %s", result_text)
             result = self._parse_json_result(result_text)
+            logger.info(
+                "Vision garment analysis parsed result: contains_garment=%s confidence=%s elapsed_ms=%.2f",
+                result.get("contains_garment", False),
+                result.get("confidence", 0.0),
+                (time.perf_counter() - started_at) * 1000,
+            )
             return {
                 "contains_garment": result.get("contains_garment", False),
                 "confidence": float(result.get("confidence", 0.0)),
@@ -104,6 +160,7 @@ class VisionService:
             }
 
         except Exception as e:
+            logger.exception("Vision garment analysis failed")
             return {
                 "contains_garment": False,
                 "confidence": 0.0,
@@ -112,9 +169,16 @@ class VisionService:
 
     async def tag_garment(self, image_bytes: bytes, detection_description: str) -> dict:
         """Generate structured clothing tags from the image and detector description."""
+        started_at = time.perf_counter()
+        logger.info(
+            "Vision garment tagging started: size_bytes=%s detection_description=%s",
+            len(image_bytes),
+            detection_description or "<empty>",
+        )
         fallback = self._fallback_garment_tags(detection_description)
 
         if not self._can_use_vision():
+            logger.warning("Vision garment tagging skipped because vision config is unavailable")
             return fallback
 
         try:
@@ -154,10 +218,20 @@ class VisionService:
             )
 
             result_text = response.choices[0].message.content.strip()
+            logger.debug("Vision garment tagging raw response: %s", result_text)
             result = self._parse_json_result(result_text)
-            return self._normalize_tag_result(result, fallback, detection_description)
+            normalized = self._normalize_tag_result(result, fallback, detection_description)
+            logger.info(
+                "Vision garment tagging finished: category=%s colors=%s tags=%s elapsed_ms=%.2f",
+                normalized.get("category"),
+                normalized.get("color"),
+                normalized.get("tags"),
+                (time.perf_counter() - started_at) * 1000,
+            )
+            return normalized
 
         except Exception:
+            logger.exception("Vision garment tagging failed, returning fallback tags")
             return fallback
 
     def _can_use_vision(self) -> bool:

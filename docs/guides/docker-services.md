@@ -21,6 +21,8 @@
 1. 确认本地环境变量已配置，尤其是后端的数据库连接地址。
 2. 在仓库根目录执行启动命令。
 
+如果你在本机启用了代理，Docker 容器和 Docker daemon 需要使用 `http://host.docker.internal:7890` 这一可达地址，而不是直接写 `127.0.0.1:7890`。仓库的 Docker 构建默认读取 `DOCKER_PROXY_URL`，未设置时回退到这个地址。
+
 ```bash
 docker compose up --build
 ```
