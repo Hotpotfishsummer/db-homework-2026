@@ -50,14 +50,17 @@ async def upload_garment(
     repository = ClothesRepository(db)
     item = await repository.create(
         user_id=resolved_user_id,
-        image_url=processed["raw_path"],
+        image_url=processed["public_url"],
         category=tags.get("category"),
         attributes={
             "source_filename": image.filename,
             "detection": detection,
             "tags": tags,
-            "processed_path": processed["processed_path"],
+            "stored_path": processed["stored_path"],
+            "public_url": processed["public_url"],
+            "format": processed["format"],
             "bg_removed": processed["bg_removed"],
+            "original_name": processed["original_name"],
         },
     )
 

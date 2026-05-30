@@ -8,6 +8,7 @@ frontend/.env.*.local
 frontend/.vite/
 frontend/.cache/
 npm-debug.log*
+frontend/public/.dev_skip_login
 
 # 后端
 backend/.pytest_cache/

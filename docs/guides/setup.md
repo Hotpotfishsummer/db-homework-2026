@@ -92,6 +92,7 @@ alembic -c db/alembic.ini upgrade head
 cd backend
 python main.py --port 8000
 # API 文档: http://localhost:8000/docs
+# VS Code: 运行 "Backend: Open Swagger UI" 可直接打开 Swagger
 ```
 
 **前端：**

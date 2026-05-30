@@ -150,10 +150,11 @@ alembic -c db/alembic.ini upgrade head
 ```bash
 cd backend
 conda activate l-wardrobe      # 或 conda create -f environment.yml
-python main.py --port 8080
+python main.py --port 8000
 ```
 
-- API 文档：`http://localhost:8080/docs`
+- API 文档：`http://localhost:8000/docs`
+- VS Code：运行 `Backend: Open Swagger UI` 可在后端启动后直接打开 Swagger
 - DEBUG=true 时自动热重载
 
 ### 3. 前端

@@ -3,6 +3,7 @@
 ## 概述
 
 FastAPI 异步 Web 服务，当前只保留用户、衣物上传与图片处理相关 REST API。旧的穿搭推荐和每日小贴士接口已退役。
+FastAPI 默认暴露 Swagger UI 于 `/docs`，本地启动后可直接查看接口与调试请求。
 
 ## 目录结构
 
@@ -51,4 +52,4 @@ backend/
 
 ## 详细文档
 
-完整后端 API 文档见 [根目录 README](../README.md#后端-api-文档)。
+完整后端 API 文档见 [根目录 README](../README.md#后端-api-文档)。本地开发时也可直接访问 `http://localhost:8000/docs`。

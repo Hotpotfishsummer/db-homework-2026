@@ -11,6 +11,7 @@ RUN pip install --upgrade pip && pip install --no-cache-dir -r /app/backend/requ
 
 COPY backend /app/backend
 COPY db /app/db
+RUN sed -i 's/\r$//' /app/backend/entrypoint.sh || true
 
-ENTRYPOINT ["/bin/sh", "/app/backend/entrypoint.sh"]
+ENTRYPOINT ["/bin/bash", "/app/backend/entrypoint.sh"]
 CMD ["python", "-m", "debugpy", "--listen", "0.0.0.0:5678", "backend/main.py", "--host", "0.0.0.0", "--port", "8000"]
