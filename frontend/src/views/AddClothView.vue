@@ -225,6 +225,8 @@ const saveCloth = async () => {
   min-height: 100vh;
   background: var(--bg-secondary);
   padding-bottom: 40px;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 .page-header {
@@ -233,6 +235,15 @@ const saveCloth = async () => {
   justify-content: space-between;
   padding: 50px 24px 16px;
   background: var(--bg-card);
+}
+
+@media (min-width: 768px) {
+  .page-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    padding: 20px 0 20px 30px;
+  }
 }
 
 .nav-back {

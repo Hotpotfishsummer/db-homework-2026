@@ -13,21 +13,23 @@
       </div>
     </div>
 
-    <SceneSelector
-      :scenes="scenes"
-      v-model="selectedScene"
-      @update:modelValue="onSceneChange"
-    />
+    <div class="home-body">
+      <SceneSelector
+        :scenes="scenes"
+        v-model="selectedScene"
+        @update:modelValue="onSceneChange"
+      />
 
-    <OutfitRecommendSection
-      :scene-name="getSceneName"
-      :is-loading="isLoading"
-      :outfits="outfits"
-      @refresh="refreshOutfits"
-      @like="like"
-      @dislike="dislike"
-      @view-detail="viewDetail"
-    />
+      <OutfitRecommendSection
+        :scene-name="getSceneName"
+        :is-loading="isLoading"
+        :outfits="outfits"
+        @refresh="refreshOutfits"
+        @like="like"
+        @dislike="dislike"
+        @view-detail="viewDetail"
+      />
+    </div>
 
     <BottomNav />
   </div>
@@ -213,17 +215,18 @@ const viewDetail = (outfit) => {
   min-height: 100vh;
   background: var(--bg-secondary);
   padding-bottom: 100px;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 @media (min-width: 768px) {
   .home-container {
-    display: flex;
-    flex-wrap: wrap;
     padding-bottom: 32px;
   }
 
-  .home-header {
-    width: 100%;
+  .home-body {
+    display: flex;
+    flex-wrap: wrap;
   }
 }
 
@@ -234,14 +237,23 @@ const viewDetail = (outfit) => {
   border-radius: 0 0 30px 30px;
 }
 
+@media (min-width: 768px) {
+  .home-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    padding: 20px 0 20px 30px;
+    border-radius: 0;
+  }
+}
+
 @media (min-width: 1024px) {
   .home-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 32px 48px;
+    padding: 20px 0 20px 30px;
     border-radius: 0;
-    width: 100%;
   }
 
   .home-header .header-left {

@@ -94,6 +94,8 @@ const clearHistory = () => {
   min-height: 100vh;
   background: var(--bg-secondary);
   padding-bottom: 100px;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 .page-nav {
@@ -102,6 +104,15 @@ const clearHistory = () => {
   justify-content: space-between;
   padding: 50px 24px 20px;
   background: var(--bg-card);
+}
+
+@media (min-width: 768px) {
+  .page-nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    padding: 20px 0 20px 30px;
+  }
 }
 
 .nav-back {

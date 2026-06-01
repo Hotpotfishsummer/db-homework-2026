@@ -127,6 +127,8 @@ const toggleStatus = (cloth) => {
   min-height: 100vh;
   background: var(--bg-secondary);
   padding-bottom: 100px;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 @media (min-width: 1024px) {
@@ -200,6 +202,15 @@ const toggleStatus = (cloth) => {
   font-size: 14px;
   line-height: 1.5;
   margin-bottom: 16px;
+}
+
+@media (min-width: 768px) {
+  .wardrobe-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    padding: 20px 0 20px 30px;
+  }
 }
 
 .wardrobe-header h1 {

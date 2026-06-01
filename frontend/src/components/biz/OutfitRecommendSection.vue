@@ -216,6 +216,7 @@ const onTouchEnd = (index, e) => {
   position: relative;
   height: 520px;
   perspective: 1000px;
+  overflow: hidden;
 }
 
 /* Desktop: horizontal layout */

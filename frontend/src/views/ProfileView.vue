@@ -1,5 +1,5 @@
 <template>
-  <div class="profile-container" ref="containerRef" @touchstart="onTouchStart" @touchend="onTouchEnd">
+  <div class="profile-container">
     <!-- Cover Section -->
     <CoverSection
       :username="authStore.user?.username || '用户'"
@@ -9,7 +9,6 @@
       :liked-count="userStore.likedOutfits.length"
       :wardrobe-count="wardrobeStore.clothes.length"
       :history-count="userStore.historyOutfits.length"
-      :pull-distance="pullDistance"
       :uploading="uploading"
       @open-avatar-modal="showAvatarModal = true"
       @go-to-settings="goToSettings"
@@ -131,8 +130,6 @@ const showAvatarModal = ref(false)
 const unlikeTarget = ref(null)
 const isTabSticky = ref(false)
 const tabsComponent = ref(null)
-const containerRef = ref(null)
-const pullDistance = ref(0)
 
 // ---- Computed ----
 const hasCompleteProfile = computed(() =>
@@ -178,50 +175,19 @@ onMounted(async () => {
   await wardrobeStore.refreshWardrobe()
   userStore.loadProfile()
   window.addEventListener('scroll', onScroll)
-  containerRef.value?.addEventListener('touchmove', onTouchMove, { passive: false })
 })
 
 onUnmounted(() => {
   window.removeEventListener('scroll', onScroll)
-  containerRef.value?.removeEventListener('touchmove', onTouchMove)
 })
 
 // ---- Scroll / Pull ----
 let pullTimer = null
 const onScroll = () => {
-  const sy = window.scrollY
-  if (sy < 0) {
-    pullDistance.value = Math.min(Math.abs(sy) * 0.6, 100)
-  } else if (pullDistance.value > 0 && sy >= 0 && !isPulling) {
-    clearTimeout(pullTimer)
-    pullTimer = setTimeout(() => { pullDistance.value = 0 }, 80)
-  }
   const tabsEl = tabsComponent.value?.tabsRef
   if (tabsEl) {
     const rect = tabsEl.getBoundingClientRect()
     isTabSticky.value = rect.top <= 0
-  }
-}
-
-let touchStartY = 0
-let isPulling = false
-const onTouchStart = (e) => {
-  if (window.scrollY <= 0) { touchStartY = e.touches[0].clientY; isPulling = false }
-}
-const onTouchMove = (e) => {
-  if (window.scrollY > 0 || !touchStartY) return
-  const delta = e.touches[0].clientY - touchStartY
-  if (delta > 10) {
-    if (delta > 0) e.preventDefault()
-    isPulling = true
-    pullDistance.value = Math.min(delta * 0.45, 100)
-  }
-}
-const onTouchEnd = () => {
-  if (isPulling) {
-    setTimeout(() => { touchStartY = 0; isPulling = false; pullDistance.value = 0 }, 50)
-  } else {
-    touchStartY = 0; isPulling = false; pullDistance.value = 0
   }
 }
 
@@ -255,7 +221,8 @@ const goToProfileEdit = () => { trigger('light'); router.push('/profile/edit') }
   min-height: 100vh;
   background: var(--bg-secondary);
   padding-bottom: 100px;
-  overscroll-behavior: none;
+  overflow-x: clip;
+  width: 100%;
 }
 
 /* Body card summary (display only) */

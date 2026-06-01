@@ -194,6 +194,8 @@ const viewInWardrobe = (item) => {
   min-height: 100vh;
   background: var(--bg-secondary);
   padding-bottom: 100px;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 .detail-nav {
