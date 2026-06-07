@@ -6,10 +6,13 @@ import logging
 import time
 from typing import Any
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.config import get_settings
 from app.services.weather import WeatherService
 from db.repositories.wardrobe_repo import ClothesRepository
-from db.session import async_session
+from db.repositories.user_repo import UserRepository
+from db.repositories.recommendation_repo import RecommendationRepository
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -32,44 +35,35 @@ except Exception:  # pragma: no cover - optional dependency
 
 
 class StylingAgentService:
-    """LangChain-powered orchestration layer for wardrobe advice."""
+    """LangChain-powered orchestration layer for wardrobe advice with dynamic database tools."""
 
-    def __init__(self):
+    def __init__(self, session: AsyncSession):
+        self.session = session
         self.weather_service = WeatherService()
-        # Wardrobe data now comes from the database via ClothesRepository
+        self.clothes_repo = ClothesRepository(session)
+        self.user_repo = UserRepository(session)
+        self.recommendation_repo = RecommendationRepository(session)
 
     async def generate_daily_tip(self, user_id: str | int | None = None, location: str | None = None) -> dict:
         started_at = time.perf_counter()
-        logger.info("Daily tip generation started: user_id=%s location=%s", user_id, location or "深圳")
-        weather = await self.weather_service.get_current(location=location or "深圳")
-        logger.debug("Daily tip weather snapshot: %s", weather)
-        # Fetch wardrobe items from DB for agent prompts
-        async with async_session() as session:
-            repo = ClothesRepository(session)
-            raw_items = await repo.get_by_ids(int(user_id) if user_id is not None else 0, [1, 2, 3])
-        logger.info("Daily tip wardrobe fetch completed: item_count=%s", len(raw_items))
-        wardrobe_items = [
-            {
-                "id": item.item_id,
-                "name": getattr(item, "name", ""),
-                "category": item.category,
-                "color": item.attributes.get("color") if item.attributes else None,
-            }
-            for item in raw_items
-        ]
+        resolved_user_id = int(user_id) if user_id is not None else 0
+        resolved_location = location or "深圳"
+        logger.info("Daily tip generation started: user_id=%s location=%s", resolved_user_id, resolved_location)
 
         if not self._can_use_agent():
             logger.warning("Daily tip generation falling back because agent is unavailable")
-            return self._fallback_daily_tip(weather, wardrobe_items)
+            weather = await self.weather_service.get_current(location=resolved_location)
+            return self._fallback_daily_tip(weather, [])
 
-        tools = self._build_daily_tip_tools(user_id=user_id, location=location, weather=weather, wardrobe_items=wardrobe_items)
+        tools = self._build_daily_tip_tools(resolved_user_id, resolved_location)
         logger.info("Daily tip agent tools prepared: tool_count=%s", len(tools))
+
         result = await self._run_agent(
             system_prompt=self._daily_tip_system_prompt(),
-            user_prompt=self._daily_tip_user_prompt(user_id=user_id, location=location),
+            user_prompt=self._daily_tip_user_prompt(user_id=resolved_user_id, location=resolved_location),
             tools=tools,
         )
-        normalized = self._normalize_daily_tip_result(result, weather=weather, wardrobe_items=wardrobe_items)
+        normalized = self._normalize_daily_tip_result(result, resolved_user_id)
         logger.info(
             "Daily tip generation finished: generated_by=%s elapsed_ms=%.2f",
             normalized.get("generated_by"),
@@ -80,46 +74,37 @@ class StylingAgentService:
     async def recommend_outfit(
         self,
         scene: str,
-        wardrobe_ids: list[int],
+        wardrobe_ids: list[int] | None = None,
         user_id: str | int | None = None,
         location: str | None = None,
     ) -> dict:
         started_at = time.perf_counter()
+        resolved_user_id = int(user_id) if user_id is not None else 0
+        resolved_location = location or "深圳"
         logger.info(
             "Outfit recommendation started: scene=%s wardrobe_count=%s user_id=%s location=%s",
             scene,
-            len(wardrobe_ids),
-            user_id,
-            location or "深圳",
+            len(wardrobe_ids or []),
+            resolved_user_id,
+            resolved_location,
         )
-        weather = await self.weather_service.get_current(location=location or "深圳")
-        logger.debug("Outfit recommendation weather snapshot: %s", weather)
-        async with async_session() as session:
-            repo = ClothesRepository(session)
-            raw_clothes = await repo.get_by_ids(int(user_id) if user_id is not None else 0, wardrobe_ids)
-        logger.info("Outfit recommendation wardrobe fetch completed: item_count=%s", len(raw_clothes))
-        clothes = [
-            {
-                "id": item.item_id,
-                "name": getattr(item, "name", ""),
-                "category": item.category,
-                "color": item.attributes.get("color") if item.attributes else None,
-            }
-            for item in raw_clothes
-        ]
 
         if not self._can_use_agent():
             logger.warning("Outfit recommendation falling back because agent is unavailable")
-            return self._fallback_outfit(scene, clothes, weather)
+            weather = await self.weather_service.get_current(location=resolved_location)
+            return self._fallback_outfit(scene, [], weather)
 
-        tools = self._build_outfit_tools(user_id=user_id, location=location, scene=scene, wardrobe_ids=wardrobe_ids, weather=weather, clothes=clothes)
+        tools = self._build_outfit_tools(resolved_user_id, resolved_location, scene, wardrobe_ids or [])
         logger.info("Outfit recommendation agent tools prepared: tool_count=%s", len(tools))
+
         result = await self._run_agent(
             system_prompt=self._outfit_system_prompt(),
-            user_prompt=self._outfit_user_prompt(scene=scene, wardrobe_ids=wardrobe_ids, user_id=user_id, location=location),
+            user_prompt=self._outfit_user_prompt(
+                scene=scene, wardrobe_ids=wardrobe_ids or [], user_id=resolved_user_id, location=resolved_location
+            ),
             tools=tools,
         )
-        normalized = self._normalize_outfit_result(result, scene=scene, weather=weather, clothes=clothes)
+        normalized = self._normalize_outfit_result(result, scene=scene, user_id=resolved_user_id)
         logger.info(
             "Outfit recommendation finished: generated_by=%s matchRate=%s elapsed_ms=%.2f",
             normalized.get("generatedBy"),
@@ -129,26 +114,34 @@ class StylingAgentService:
         return normalized
 
     def _can_use_agent(self) -> bool:
-        return bool(
-            LANGCHAIN_AVAILABLE
-            and settings.llm_api_key
-            and settings.llm_api_base
-            and settings.llm_model
-        )
+        has_generic = bool(settings.llm_api_key and settings.llm_api_base and settings.llm_model)
+        has_deepseek = bool(settings.deepseek_api_key)
+        return bool(LANGCHAIN_AVAILABLE and (has_generic or has_deepseek))
 
     def _build_llm(self):
         if not self._can_use_agent():
             raise RuntimeError("LangChain LLM is not available")
-        logger.debug("Building LangChain ChatOpenAI client with base_url=%s model=%s", settings.llm_api_base, settings.llm_model)
+
+        if settings.deepseek_api_key:
+            api_key = settings.deepseek_api_key
+            base_url = settings.deepseek_base_url
+            model = settings.llm_model or "deepseek-chat"
+            logger.debug("Using DeepSeek LLM: base_url=%s model=%s", base_url, model)
+        else:
+            api_key = settings.llm_api_key
+            base_url = settings.llm_api_base
+            model = settings.llm_model
+            logger.debug("Using generic OpenAI-compatible LLM: base_url=%s model=%s", base_url, model)
+
         return ChatOpenAI(
-            api_key=settings.llm_api_key,
-            base_url=settings.llm_api_base,
-            model=settings.llm_model,
+            api_key=api_key,
+            base_url=base_url,
+            model=model,
             temperature=settings.llm_temperature,
             max_tokens=settings.llm_max_tokens,
         )
 
-    def _run_agent(self, system_prompt: str, user_prompt: str, tools: list[Any]) -> Any:
+    async def _run_agent(self, system_prompt: str, user_prompt: str, tools: list[Any]) -> dict[str, Any]:
         logger.info("Starting agent execution: tool_count=%s prompt_chars=%s", len(tools), len(user_prompt))
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -162,176 +155,322 @@ class StylingAgentService:
         executor = AgentExecutor(
             agent=agent,
             tools=tools,
-            verbose=False,
+            verbose=settings.debug,
             max_iterations=settings.agent_max_iterations,
             handle_parsing_errors=True,
             return_intermediate_steps=True,
         )
         started_at = time.perf_counter()
-
-        async def _invoke() -> Any:
-            result = await executor.ainvoke({"input": user_prompt})
-            logger.info(
-                "Agent execution finished: output_chars=%s intermediate_steps=%s elapsed_ms=%.2f",
-                len(str(result.get("output", ""))),
-                len(result.get("intermediate_steps", []) or []),
-                (time.perf_counter() - started_at) * 1000,
-            )
-            logger.debug("Agent raw result keys: %s", sorted(result.keys()))
-            return result
-
-        return _invoke()
+        result = await executor.ainvoke({"input": user_prompt})
+        logger.info(
+            "Agent execution finished: output_chars=%s intermediate_steps=%s elapsed_ms=%.2f",
+            len(str(result.get("output", ""))),
+            len(result.get("intermediate_steps", []) or []),
+            (time.perf_counter() - started_at) * 1000,
+        )
+        logger.debug("Agent raw result keys: %s", sorted(result.keys()))
+        return result
 
     def _build_daily_tip_tools(
         self,
-        user_id: str | int | None,
-        location: str | None,
-        weather: dict,
-        wardrobe_items: list[dict],
+        user_id: int,
+        location: str,
     ) -> list[Any]:
         if not LANGCHAIN_AVAILABLE:
             return []
 
-        fallback_location = location or "深圳"
         return [
-            self._weather_tool(weather_snapshot=weather, fallback_location=fallback_location),
-            self._wardrobe_tool(items=wardrobe_items),
-            self._user_profile_tool(user_id=user_id, location=fallback_location),
-            self._style_rules_tool(),
+            self._weather_tool(location=location),
+            self._search_wardrobe_tool(user_id=user_id),
+            self._count_wardrobe_tool(user_id=user_id),
+            self._get_wardrobe_items_tool(user_id=user_id),
+            self._user_profile_tool(user_id=user_id),
+            self._history_tool(user_id=user_id),
         ]
 
     def _build_outfit_tools(
         self,
-        user_id: str | int | None,
-        location: str | None,
+        user_id: int,
+        location: str,
         scene: str,
         wardrobe_ids: list[int],
-        weather: dict,
-        clothes: list[dict],
     ) -> list[Any]:
         if not LANGCHAIN_AVAILABLE:
             return []
 
-        fallback_location = location or "深圳"
         return [
-            self._weather_tool(weather_snapshot=weather, fallback_location=fallback_location),
-            self._wardrobe_tool(items=clothes, ids=wardrobe_ids),
-            self._user_profile_tool(user_id=user_id, location=fallback_location),
-            self._history_tool(),
+            self._weather_tool(location=location),
+            self._search_wardrobe_tool(user_id=user_id),
+            self._get_wardrobe_items_tool(user_id=user_id),
+            self._count_wardrobe_tool(user_id=user_id),
+            self._user_profile_tool(user_id=user_id),
+            self._history_tool(user_id=user_id),
             self._style_rules_tool(scene=scene),
+            self._save_recommendation_tool(user_id=user_id, scene=scene),
         ]
 
-    def _weather_tool(self, weather_snapshot: dict, fallback_location: str):
-        @tool("get_weather")
+    def _weather_tool(self, location: str):
+        @tool
         async def get_weather(city: str | None = None) -> str:
-            logger.debug("Agent tool get_weather called: city=%s fallback_location=%s", city, fallback_location)
-            current = weather_snapshot if not city or city == fallback_location else await self.weather_service.get_current(location=city)
+            """Get current weather for a city. Returns temperature, condition, wind, and humidity."""
+            target = city or location
+            logger.debug("Agent tool get_weather called: city=%s", target)
+            current = await self.weather_service.get_current(location=target)
             return json.dumps(current, ensure_ascii=False)
 
         return get_weather
 
-    def _wardrobe_tool(self, items: list[dict], ids: list[int] | None = None):
-        payload: dict[str, Any] = {"items": items, "count": len(items)}
-        if ids is not None:
-            payload["ids"] = ids
-
-        @tool("get_wardrobe_items")
-        async def get_wardrobe_items() -> str:
-            logger.debug("Agent tool get_wardrobe_items called: count=%s", payload["count"])
+    def _search_wardrobe_tool(self, user_id: int):
+        @tool
+        async def search_wardrobe(
+            category: str = "",
+            season: str = "",
+            color: str = "",
+            status: str = "",
+            limit: int = 20,
+        ) -> str:
+            """Search user's wardrobe items with filters. Use to find relevant clothes for an outfit.
+            Category can be: top, bottom, outerwear, shoes, accessory, bag, other.
+            Season can be: spring, summer, autumn, winter.
+            Status can be: available, washing.
+            """
+            logger.debug(
+                "Agent tool search_wardrobe called: user_id=%s category=%s season=%s color=%s status=%s limit=%s",
+                user_id,
+                category,
+                season,
+                color,
+                status,
+                limit,
+            )
+            items = await self.clothes_repo.list_by_user(
+                user_id,
+                category=category or None,
+                season=season or None,
+                color=color or None,
+                status=status or None,
+                limit=limit,
+                offset=0,
+            )
+            payload = {
+                "items": [
+                    {
+                        "id": item.item_id,
+                        "name": item.name,
+                        "category": item.category,
+                        "color": item.color,
+                        "seasons": item.seasons,
+                        "status": item.status,
+                        "image_url": item.image_url,
+                        "attributes": item.attributes,
+                    }
+                    for item in items
+                ],
+                "count": len(items),
+            }
             return json.dumps(payload, ensure_ascii=False)
 
-        return get_wardrobe_items
+        return search_wardrobe
 
-    def _user_profile_tool(self, user_id: str | int | None, location: str):
-        @tool("get_user_profile")
+    def _get_wardrobe_items_tool(self, user_id: int):
+        @tool
+        async def get_wardrobe_items_by_ids(ids: list[int]) -> str:
+            """Fetch full details of specific wardrobe items by their IDs."""
+            logger.debug("Agent tool get_wardrobe_items_by_ids called: user_id=%s ids=%s", user_id, ids)
+            items = await self.clothes_repo.get_by_ids(user_id, ids)
+            payload = {
+                "items": [
+                    {
+                        "id": item.item_id,
+                        "name": item.name,
+                        "category": item.category,
+                        "color": item.color,
+                        "seasons": item.seasons,
+                        "status": item.status,
+                        "image_url": item.image_url,
+                        "attributes": item.attributes,
+                    }
+                    for item in items
+                ],
+                "count": len(items),
+            }
+            return json.dumps(payload, ensure_ascii=False)
+
+        return get_wardrobe_items_by_ids
+
+    def _count_wardrobe_tool(self, user_id: int):
+        @tool
+        async def count_wardrobe_items() -> str:
+            """Count total wardrobe items for a user."""
+            logger.debug("Agent tool count_wardrobe_items called: user_id=%s", user_id)
+            count = await self.clothes_repo.count_by_user(user_id)
+            return json.dumps({"count": count}, ensure_ascii=False)
+
+        return count_wardrobe_items
+
+    def _user_profile_tool(self, user_id: int):
+        @tool
         async def get_user_profile() -> str:
-            logger.debug("Agent tool get_user_profile called: user_id=%s location=%s", user_id, location)
+            """Get user profile including display name, location, and style preference."""
+            logger.debug("Agent tool get_user_profile called: user_id=%s", user_id)
+            user = await self.user_repo.get_by_id(user_id)
+            if not user:
+                return json.dumps({"error": "User not found"}, ensure_ascii=False)
             profile = {
-                "user_id": user_id,
-                "display_name": "匿名用户",
-                "style_preference": "日常简洁",
-                "location": location,
+                "user_id": user.user_id,
+                "username": user.username,
+                "display_name": user.display_name,
+                "style_preference": user.style_preference,
+                "location": user.location,
             }
             return json.dumps(profile, ensure_ascii=False)
 
         return get_user_profile
 
-    def _history_tool(self):
-        @tool("get_history_recommendations")
-        async def get_history_recommendations() -> str:
-            logger.debug("Agent tool get_history_recommendations called")
-            history = {
-                "items": [],
-                "note": "当前为占位历史推荐接口，后续将接入 recommendation_repo。",
+    def _history_tool(self, user_id: int):
+        @tool
+        async def get_history_recommendations(limit: int = 5) -> str:
+            """Get user's past outfit recommendations."""
+            logger.debug("Agent tool get_history_recommendations called: user_id=%s limit=%s", user_id, limit)
+            recs = await self.recommendation_repo.list_by_user(user_id, limit=limit)
+            payload = {
+                "items": [
+                    {
+                        "recommend_id": str(rec.recommend_id),
+                        "scene": rec.scene,
+                        "title": rec.title,
+                        "match_rate": rec.match_rate,
+                        "created_at": rec.created_at.isoformat() if rec.created_at else None,
+                    }
+                    for rec in recs
+                ],
+                "count": len(recs),
             }
-            return json.dumps(history, ensure_ascii=False)
+            return json.dumps(payload, ensure_ascii=False)
 
         return get_history_recommendations
 
     def _style_rules_tool(self, scene: str | None = None):
-        @tool("get_style_rules")
+        @tool
         async def get_style_rules() -> str:
+            """Get style rules for a given scene or general styling principles."""
             logger.debug("Agent tool get_style_rules called: scene=%s", scene)
             rules = {
                 "scene": scene,
-                "priority": ["根据天气", "结合衣橱可用项", "给出可执行建议"] if scene is None else ["天气适配", "场景一致性", "衣橱可用性"],
-                "note": "当前为占位规则，后续可替换为用户历史与偏好驱动的规则引擎。",
+                "priority": (
+                    ["根据天气", "结合衣橱可用项", "给出可执行建议"]
+                    if scene is None
+                    else ["天气适配", "场景一致性", "衣橱可用性"]
+                ),
+                "note": "优先选择用户已有衣橱中的单品进行搭配。",
             }
             return json.dumps(rules, ensure_ascii=False)
 
         return get_style_rules
 
+    def _save_recommendation_tool(self, user_id: int, scene: str):
+        @tool
+        async def save_recommendation(
+            title: str,
+            description: str = "",
+            reason: str = "",
+            match_rate: int = 0,
+            selected_item_ids: list[int] | None = None,
+            weather_snapshot: dict | None = None,
+        ) -> str:
+            """Save an outfit recommendation to the database for history."""
+            logger.debug(
+                "Agent tool save_recommendation called: user_id=%s scene=%s title=%s",
+                user_id,
+                scene,
+                title,
+            )
+            if selected_item_ids:
+                items = await self.clothes_repo.get_by_ids(user_id, selected_item_ids)
+            else:
+                items = []
+
+            rec = await self.recommendation_repo.create(
+                user_id=user_id,
+                scene=scene,
+                title=title,
+                description=description,
+                reason=reason,
+                match_rate=match_rate,
+                weather_snapshot=weather_snapshot or {},
+                items=items,
+            )
+            await self.session.commit()
+            return json.dumps({"recommendation_id": str(rec.recommend_id)}, ensure_ascii=False)
+
+        return save_recommendation
+
     def _daily_tip_system_prompt(self) -> str:
         return (
-            "你是一个穿搭建议 Agent。你必须优先调用工具获取天气、衣橱、用户资料和规则，再输出简洁可执行的每日建议。"
-            "最终只输出严格 JSON，不要输出 markdown。字段格式：{\"tip\": string, \"weather_summary\": string, \"wardrobe_items_considered\": number, \"generated_by\": string, \"tool_summary\": string[]}"
+            "你是时尚穿搭顾问 L-Wardrobe AI。你必须优先调用工具获取天气、衣橱、用户资料和规则，再输出简洁可执行的每日建议。"
+            "工作流程：1) 使用 get_user_profile 获取用户位置；2) 使用 get_weather 获取天气；3) 使用 count_wardrobe_items 和 search_wardrobe 了解衣橱情况；"
+            "4) 给出一条具体、可执行的建议。"
+            "最终只输出严格 JSON，不要输出 markdown。字段格式："
+            '{"tip": string, "weather_summary": string, "wardrobe_items_considered": number, "generated_by": string, "tool_summary": string[]}'
         )
 
     def _outfit_system_prompt(self) -> str:
         return (
-            "你是一个穿搭编排 Agent。你必须优先调用工具获取天气、衣橱、用户资料、历史推荐和规则，再生成结构化穿搭建议。"
-            "最终只输出严格 JSON，不要输出 markdown。字段格式：{\"name\": string, \"description\": string, \"matchRate\": number, \"reason\": string, \"image\": string, \"selectedItems\": array, \"weatherSummary\": string, \"toolSummary\": string[], \"generatedBy\": string}"
+            "你是时尚穿搭编排顾问 L-Wardrobe AI。你必须优先调用工具获取天气、衣橱、用户资料、历史推荐和规则，再生成结构化穿搭建议。"
+            "工作流程：1) 使用 get_user_profile 获取用户位置；2) 使用 get_weather 获取天气；3) 使用 search_wardrobe 或 get_wardrobe_items_by_ids 查询相关单品；"
+            "4) 使用 get_history_recommendations 查看历史推荐避免重复；5) 分析并推荐一套穿搭，输出 JSON。"
+            "规则：- 必须从用户衣橱中选择真实存在的单品（使用 search_wardrobe 或 get_wardrobe_items_by_ids 验证）"
+            "- matchRate 必须是 0-100 的整数"
+            "- selectedItems 必须是从衣橱中选出的真实 item_id"
+            "- 如果衣橱为空或不足，如实说明并在 reason 中解释"
+            "最终只输出严格 JSON，不要输出 markdown。字段格式："
+            '{"name": string, "description": string, "matchRate": number, "reason": string, "image": string, "selectedItems": array, "weatherSummary": string, "toolSummary": string[], "generatedBy": string}'
         )
 
-    def _daily_tip_user_prompt(self, user_id: str | int | None, location: str | None) -> str:
+    def _daily_tip_user_prompt(self, user_id: int, location: str | None) -> str:
         return (
             f"用户ID: {user_id}\n"
             f"位置: {location or '深圳'}\n"
             "请产出今天的穿搭建议，语气简洁，强调可执行性。"
         )
 
-    def _outfit_user_prompt(self, scene: str, wardrobe_ids: list[int], user_id: str | int | None, location: str | None) -> str:
+    def _outfit_user_prompt(self, scene: str, wardrobe_ids: list[int], user_id: int, location: str | None) -> str:
+        ids_str = ", ".join(map(str, wardrobe_ids)) if wardrobe_ids else "未指定"
         return (
             f"用户ID: {user_id}\n"
             f"场景: {scene}\n"
-            f"衣橱单品ID: {wardrobe_ids}\n"
+            f"可用衣橱单品ID: {ids_str}\n"
             f"位置: {location or '深圳'}\n"
-            "请生成一套穿搭推荐，强调为何适合当前场景和天气。"
+            "请生成一套穿搭推荐，强调为何适合当前场景和天气。优先从可用衣橱单品中选择。"
         )
 
-    def _normalize_daily_tip_result(self, result: dict, weather: dict, wardrobe_items: list[dict]) -> dict:
+    def _normalize_daily_tip_result(self, result: dict, user_id: int) -> dict:
         output = self._parse_json_output(result.get("output", ""))
-        tip = output.get("tip") or output.get("description") or self._default_tip(weather)
+        tip = output.get("tip") or output.get("description") or self._default_tip({})
         return {
             "tip": tip,
-            "weather_summary": output.get("weather_summary") or self._weather_summary(weather),
-            "wardrobe_items_considered": output.get("wardrobe_items_considered", len(wardrobe_items)),
+            "weather_summary": output.get("weather_summary") or self._weather_summary({}),
+            "wardrobe_items_considered": output.get("wardrobe_items_considered", 0),
             "generated_by": output.get("generated_by", "langchain-agent" if self._can_use_agent() else "fallback"),
-            "tool_summary": output.get("tool_summary", self._summarize_intermediate_steps(result.get("intermediate_steps", []))),
+            "tool_summary": output.get(
+                "tool_summary", self._summarize_intermediate_steps(result.get("intermediate_steps", []))
+            ),
             "raw_output": result.get("output", ""),
+            "user_id": user_id,
         }
 
-    def _normalize_outfit_result(self, result: dict, scene: str, weather: dict, clothes: list[dict]) -> dict:
+    def _normalize_outfit_result(self, result: dict, scene: str, user_id: int) -> dict:
         output = self._parse_json_output(result.get("output", ""))
-        fallback = self._fallback_outfit(scene, clothes, weather)
+        fallback = self._fallback_outfit(scene, [], {})
         merged = {**fallback, **output}
         merged.setdefault("id", str(uuid.uuid4()))
         merged.setdefault("scene", scene)
         merged.setdefault("toolSummary", self._summarize_intermediate_steps(result.get("intermediate_steps", [])))
-        merged.setdefault("weatherSummary", self._weather_summary(weather))
+        merged.setdefault("weatherSummary", self._weather_summary({}))
         merged.setdefault("generatedBy", "langchain-agent" if self._can_use_agent() else "fallback")
         merged.setdefault("selectedItems", [])
         merged.setdefault("raw_output", result.get("output", ""))
+        merged.setdefault("user_id", user_id)
         return merged
 
     def _parse_json_output(self, raw_output: str) -> dict:
@@ -354,7 +493,11 @@ class StylingAgentService:
             try:
                 action = step[0]
                 observation = step[1]
-                tool_name = getattr(action, "tool", None) or getattr(action, "tool_name", None) or "tool"
+                tool_name = (
+                    getattr(action, "tool", None)
+                    or getattr(action, "tool_name", None)
+                    or "tool"
+                )
                 summary.append(f"{tool_name}: {str(observation)[:120]}")
             except Exception:
                 summary.append("tool step captured")

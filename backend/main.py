@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from app.core.config import get_settings
 from app.core.logging import setup_logging
-from app.api.v1 import auth, garments, user
+from app.api.v1 import auth, daily_tips, garments, outfit, user
 from app.services.llm_health import check_llm_api_availability
 
 settings = get_settings()
@@ -31,6 +31,8 @@ app.state.llm_api_task = None
 app.include_router(garments.router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(user.router, prefix="/api/v1")
+app.include_router(outfit.router, prefix="/api/v1")
+app.include_router(daily_tips.router, prefix="/api/v1")
 
 
 async def _check_llm_api_availability() -> None:
