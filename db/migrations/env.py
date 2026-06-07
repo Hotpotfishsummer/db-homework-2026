@@ -1,7 +1,11 @@
 from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
 from db.base import Base
-from db.models import User, Clothes, WardrobeItem
+from db.models import (
+    User, UserProfile, Clothes, WardrobeItem,
+    OutfitRecommendation, RecommendationItem,
+    OutfitFavorite, OutfitHistory, DailyTip,
+)
 from db.session import _config, _build_async_url
 
 target_metadata = Base.metadata
