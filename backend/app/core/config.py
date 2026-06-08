@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     hefeng_api_key: str = ""
     hefeng_api_host: str = ""
     deepseek_api_key: str = ""
+    deepseek_base_url: str = "https://api.deepseek.com/v1"
     llm_api_key: str = ""
     llm_api_base: str = "https://api.openai.com/v1"
     llm_model: str = "gpt-4o-mini"

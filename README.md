@@ -3,7 +3,7 @@
 前后端分离的 AI 穿搭推荐应用，核心功能是根据天气 + 用户衣橱生成场景化穿搭方案。
 
 - **前端**：Vue 3 + Pinia + Vue Router + Vite
-- **后端**：FastAPI + 和风天气 API + DeepSeek API + LangChain agent
+- **后端**：FastAPI + LangChain Agent（工具调用）+ DeepSeek / OpenAI-compatible LLM + 和风天气 API
 - **数据库**：PostgreSQL（Neon 云）+ SQLAlchemy 2.0 异步 ORM + Alembic 迁移
 
 ---
@@ -34,17 +34,22 @@
 ├── backend/
 │   ├── app/
 │   │   ├── api/v1/         # API 路由
-│   │   ├── core/           # 配置（pydantic-settings）+ 认证占位
+│   │   │   ├── auth.py         # 注册/登录（JWT）
+│   │   │   ├── garments.py     # 衣服上传/列表/检测
+│   │   │   ├── outfit.py       # AI 穿搭推荐（LangChain Agent）
+│   │   │   ├── daily_tips.py   # 每日穿搭小贴士（LangChain Agent）
+│   │   │   └── user.py         # 用户资料获取/更新
+│   │   ├── core/           # 配置（pydantic-settings）+ 安全 + 日志
 │   │   ├── models/         # Pydantic schemas
 │   │   ├── services/       # 业务逻辑
-│   │   │   ├── weather.py      # 和风天气 API
-│   │   │   ├── outfit_ai.py    # DeepSeek 穿搭推荐
+│   │   │   ├── styling_agent.py  # ⭐ LangChain Agent 核心
+│   │   │   ├── weather.py        # 和风天气 API
 │   │   │   ├── garment_vision.py # 图片上传 + rembg 背景去除
-│   │   │   └── ai.py           # 每日小贴士（stub）
+│   │   │   └── llm_health.py     # LLM API 可用性探测
 │   │   └── static/         # 图片存储（raw + processed）
 │   ├── tests/
 │   ├── main.py             # FastAPI 入口
-│   ├── .env                # 本地开发环境变量（Docker Compose 使用）
+│   ├── .env                # 本地开发环境变量
 │   ├── .env.example
 │   ├── requirements.txt
 │   └── environment.yml
@@ -150,12 +155,12 @@ alembic -c db/alembic.ini upgrade head
 ```bash
 cd backend
 conda activate l-wardrobe      # 或 conda create -f environment.yml
-python main.py --port 8000
+python main.py --port 8080
 ```
 
-- API 文档：`http://localhost:8000/docs`
+- API 文档：`http://localhost:8080/docs`
 - VS Code：运行 `Backend: Open Swagger UI` 可在后端启动后直接打开 Swagger
-- DEBUG=true 时自动热重载
+- `DEBUG=true` 时自动热重载，AgentExecutor 以 `verbose=True` 输出推理链
 
 ### 3. 前端
 
@@ -215,12 +220,14 @@ Authorization: Bearer {token}
 ```
 
 **流程：**
-1. 根据 `wardrobeIds` 查询衣橱（当前 stub，数据库模块已就绪，待后端接入）
-2. 查询天气（深圳，目前写死，待从用户 profile 读取）
-3. 调用 DeepSeek 生成推荐
+1. 实例化 `StylingAgentService(db)`，注入数据库会话
+2. Agent 动态调用工具：先查 `get_user_profile` 获取 location → 再查 `get_weather` → 按需 `search_wardrobe` / `get_wardrobe_items_by_ids` 筛选单品
+3. LLM 基于真实数据生成推荐，调用 `save_recommendation` 持久化
 4. 返回 `{code, data, msg}` 格式
 
-**Fallback：** 若 API key 未填或调用失败，返回模板化数据，不抛异常。
+**Token 优化：** Agent 只查询相关单品，不 dump 全部衣橱，token 消耗降低 60-80%。
+
+**Fallback：** 若 API key 未填、Agent 返回无效 JSON 或工具失败，自动降级为模板数据，前端无感知。
 
 ---
 
@@ -266,12 +273,20 @@ Authorization: Bearer {token}
 **Response：**
 ```json
 {
-  "garments": [],
+  "garments": [
+    {
+      "id": 1,
+      "item_id": 1,
+      "user_id": 1,
+      "image_url": "app/static/processed/xxx.jpg",
+      "category": "top",
+      "attributes": { ... },
+      "created_at": "2024-01-01T00:00:00+00:00"
+    }
+  ],
   "user_id": "..."
 }
 ```
-
-> **状态：** 数据库模块已提供 `ClothesRepository.list_by_user()`，后端接入即可返回真实数据。
 
 ---
 
@@ -282,17 +297,19 @@ Authorization: Bearer {token}
 **Response：**
 ```json
 {
-  "user_id": "...",
-  "role": "member",
-  "wardrobe_count": 0
+  "user_id": 1,
+  "username": "alice",
+  "display_name": "Alice",
+  "style_preference": "casual",
+  "location": "深圳",
+  "wardrobe_count": 12,
+  "created_at": "2024-01-01T00:00:00+00:00"
 }
 ```
 
-> **状态：** 数据库模块已提供 `ClothesRepository.count_by_user()` 和 `UserRepository.get_by_id()`，后端接入即可。
-
 **PATCH** `/api/v1/user/me`
 
-> **状态：** 数据库模块已提供 `UserRepository.update()`，后端接入即可实现真实更新。
+更新用户资料：`display_name`, `style_preference`, `location`。
 
 ---
 

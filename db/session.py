@@ -17,8 +17,10 @@ _config = DBConfig()
 
 
 def _build_async_url(raw: str) -> str:
-    """Convert a PostgreSQL URL to asyncpg-compatible format."""
-    if raw.startswith("postgresql://"):
+    """Convert a database URL to an async-driver-compatible format."""
+    if raw.startswith("sqlite://") and not raw.startswith("sqlite+aiosqlite://"):
+        raw = raw.replace("sqlite://", "sqlite+aiosqlite://", 1)
+    elif raw.startswith("postgresql://"):
         raw = raw.replace("postgresql://", "postgresql+asyncpg://", 1)
     elif raw.startswith("postgres://"):
         raw = raw.replace("postgres://", "postgresql+asyncpg://", 1)
