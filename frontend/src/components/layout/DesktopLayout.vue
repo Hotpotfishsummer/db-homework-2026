@@ -22,7 +22,6 @@ import SidebarDesktop from '../SidebarDesktop.vue'
   flex: 1;
   margin-left: 0;
   padding: 0;
-  max-width: var(--content-max-width);
   overflow-x: clip;
   min-width: 0;
 }
@@ -31,18 +30,6 @@ import SidebarDesktop from '../SidebarDesktop.vue'
   .desktop-content {
     margin-left: var(--sidebar-width);
     padding: 0 32px 24px;
-  }
-}
-
-@media (min-width: 1024px) {
-  .desktop-content {
-    padding: 0 48px 32px;
-  }
-}
-
-@media (min-width: 1280px) {
-  .desktop-content {
-    padding: 0 64px 40px;
   }
 }
 </style>
