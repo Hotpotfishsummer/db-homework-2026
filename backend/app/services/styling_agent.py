@@ -18,19 +18,26 @@ settings = get_settings()
 logger = logging.getLogger(__name__)
 
 try:
-    from langchain.agents import AgentExecutor, create_tool_calling_agent
-    from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+    # langchain v1.x removed the legacy `langchain.agents.AgentExecutor` and
+    # `create_tool_calling_agent` entry points. The official migration target
+    # is `langgraph-prebuilt.create_react_agent`, which returns a LangGraph
+    # compiled graph (compatible with `.ainvoke(...)`) backed by the same
+    # tool-calling semantics. We adapt the result shape below so the rest of
+    # this module keeps working with the v0.x `{"output", "intermediate_steps"}`
+    # contract.
+    from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
     from langchain_core.tools import tool
     from langchain_openai import ChatOpenAI
+    from langgraph.prebuilt import create_react_agent
 
     LANGCHAIN_AVAILABLE = True
 except Exception:  # pragma: no cover - optional dependency
-    AgentExecutor = None
-    create_tool_calling_agent = None
-    ChatPromptTemplate = None
-    MessagesPlaceholder = None
+    HumanMessage = None
+    AIMessage = None
+    ToolMessage = None
     tool = None
     ChatOpenAI = None
+    create_react_agent = None
     LANGCHAIN_AVAILABLE = False
 
 
@@ -114,15 +121,30 @@ class StylingAgentService:
         return normalized
 
     def _can_use_agent(self) -> bool:
-        has_generic = bool(settings.llm_api_key and settings.llm_api_base and settings.llm_model)
-        has_deepseek = bool(settings.deepseek_api_key)
+        # Treat the documented "your_*_api_key_here" placeholders as
+        # "not configured" so the agent doesn't try to call an LLM endpoint
+        # with a literal placeholder key (which yields a 401 mid-run).
+        def _is_configured(value: str | None) -> bool:
+            if not value:
+                return False
+            stripped = value.strip().lower()
+            if not stripped or stripped.startswith("your_") or stripped.endswith("_here"):
+                return False
+            return True
+
+        has_generic = bool(
+            _is_configured(settings.llm_api_key)
+            and settings.llm_api_base
+            and settings.llm_model
+        )
+        has_deepseek = _is_configured(settings.deepseek_api_key)
         return bool(LANGCHAIN_AVAILABLE and (has_generic or has_deepseek))
 
     def _build_llm(self):
         if not self._can_use_agent():
             raise RuntimeError("LangChain LLM is not available")
 
-        if settings.deepseek_api_key:
+        if settings.deepseek_api_key and settings.deepseek_api_key.strip() and not settings.deepseek_api_key.strip().lower().startswith("your_"):
             api_key = settings.deepseek_api_key
             base_url = settings.deepseek_base_url
             model = settings.llm_model or "deepseek-chat"
@@ -142,34 +164,95 @@ class StylingAgentService:
         )
 
     async def _run_agent(self, system_prompt: str, user_prompt: str, tools: list[Any]) -> dict[str, Any]:
+        """Run the LangGraph ReAct agent and normalize the result.
+
+        langgraph's `create_react_agent` returns a compiled graph whose
+        `.ainvoke(...)` yields `{"messages": [HumanMessage, AIMessage(...),
+        ToolMessage(...), AIMessage(...), ...]}`. To keep the rest of this
+        module (the `_normalize_*_result` helpers and downstream callers)
+        unchanged, we reshape the graph result into the v0.x AgentExecutor
+        contract: `{"output": <final AI text>, "intermediate_steps":
+        [(action, observation), ...]}`.
+        """
         logger.info("Starting agent execution: tool_count=%s prompt_chars=%s", len(tools), len(user_prompt))
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", system_prompt),
-                ("human", "{input}"),
-                MessagesPlaceholder(variable_name="agent_scratchpad"),
-            ]
-        )
         llm = self._build_llm()
-        agent = create_tool_calling_agent(llm, tools, prompt)
-        executor = AgentExecutor(
-            agent=agent,
-            tools=tools,
-            verbose=settings.debug,
-            max_iterations=settings.agent_max_iterations,
-            handle_parsing_errors=True,
-            return_intermediate_steps=True,
+
+        # The system prompt contains a JSON field-format spec like
+        # `{"name": string, ...}` which would otherwise be parsed as
+        # template variables if we passed a `prompt=ChatPromptTemplate(...)`
+        # to langgraph. To avoid that, we use a callable `prompt` that
+        # returns the full list of messages (system + conversation) as a
+        # plain list of BaseMessage objects — langgraph will pass this list
+        # to the model without going through template formatting.
+        from langchain_core.messages import SystemMessage
+
+        def _prompt_callable(state: dict) -> list[Any]:
+            return [SystemMessage(content=system_prompt), *state.get("messages", [])]
+
+        graph = create_react_agent(
+            llm,
+            tools,
+            prompt=_prompt_callable,
         )
+
         started_at = time.perf_counter()
-        result = await executor.ainvoke({"input": user_prompt})
+        result = await graph.ainvoke(
+            {"messages": [HumanMessage(content=user_prompt)]},
+            config={"recursion_limit": max(4, settings.agent_max_iterations * 2 + 2)},
+        )
+        raw_messages = result.get("messages", []) or []
+        output, intermediate_steps = self._extract_output_and_steps(raw_messages)
         logger.info(
             "Agent execution finished: output_chars=%s intermediate_steps=%s elapsed_ms=%.2f",
-            len(str(result.get("output", ""))),
-            len(result.get("intermediate_steps", []) or []),
+            len(str(output)),
+            len(intermediate_steps),
             (time.perf_counter() - started_at) * 1000,
         )
         logger.debug("Agent raw result keys: %s", sorted(result.keys()))
-        return result
+        return {"output": output, "intermediate_steps": intermediate_steps}
+
+    @staticmethod
+    def _extract_output_and_steps(messages: list[Any]) -> tuple[str, list[tuple[Any, Any]]]:
+        """Convert a LangGraph message list into the v0.x `(output, steps)` tuple.
+
+        Walks the message list pairing each `AIMessage` that has `tool_calls`
+        with the immediately following `ToolMessage(s)`. The "output" is the
+        text content of the **last** `AIMessage` that has no tool calls (i.e.
+        the final answer the agent emitted).
+        """
+        output = ""
+        steps: list[tuple[Any, Any]] = []
+        i = 0
+        while i < len(messages):
+            msg = messages[i]
+            cls_name = type(msg).__name__
+            if cls_name == "AIMessage":
+                # Collect any tool_calls on this AIMessage.
+                tool_calls = getattr(msg, "tool_calls", None) or []
+                if tool_calls:
+                    # Pair each tool_call with the next ToolMessage sharing
+                    # the same tool_call_id (the graph emits one ToolMessage
+                    # per tool call).
+                    pending = {tc["id"]: tc for tc in tool_calls if isinstance(tc, dict) and "id" in tc}
+                    j = i + 1
+                    while j < len(messages) and pending:
+                        nxt = messages[j]
+                        if type(nxt).__name__ != "ToolMessage":
+                            j += 1
+                            continue
+                        tc_id = getattr(nxt, "tool_call_id", None)
+                        action = pending.pop(tc_id, None)
+                        if action is not None:
+                            steps.append((action, getattr(nxt, "content", "")))
+                        j += 1
+                else:
+                    # No tool calls → this is the final answer (or an interim
+                    # text-only message; we keep the latest one as `output`).
+                    text = getattr(msg, "content", "") or ""
+                    if text:
+                        output = text
+            i += 1
+        return output, steps
 
     def _build_daily_tip_tools(
         self,
@@ -491,13 +574,18 @@ class StylingAgentService:
         summary: list[str] = []
         for step in intermediate_steps or []:
             try:
-                action = step[0]
-                observation = step[1]
-                tool_name = (
-                    getattr(action, "tool", None)
-                    or getattr(action, "tool_name", None)
-                    or "tool"
-                )
+                action, observation = step[0], step[1]
+                # After the langgraph migration `action` is a dict (the
+                # tool_call payload) instead of an AgentAction object. Handle
+                # both shapes so the log output stays stable.
+                if isinstance(action, dict):
+                    tool_name = action.get("name") or action.get("tool") or "tool"
+                else:
+                    tool_name = (
+                        getattr(action, "tool", None)
+                        or getattr(action, "tool_name", None)
+                        or "tool"
+                    )
                 summary.append(f"{tool_name}: {str(observation)[:120]}")
             except Exception:
                 summary.append("tool step captured")

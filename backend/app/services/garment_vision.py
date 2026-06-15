@@ -2,6 +2,7 @@ import io
 import base64
 import json
 import logging
+import re
 import time
 import uuid
 from pathlib import Path
@@ -10,7 +11,13 @@ from PIL import Image, ImageOps
 
 from app.core.config import get_settings
 
-GARMENT_DIR = Path("app/static/garments")
+# Anchor the storage path to the location of THIS source file, not the process
+# CWD. The Docker image runs with CWD=/app but the code lives in
+# /app/backend/app/..., so a relative path like "app/static/garments" would
+# resolve to /app/app/static/garments (one level too high) and the uploaded
+# files would never be reachable by the StaticFiles mount.
+_APP_DIR = Path(__file__).resolve().parent.parent  # /app/backend/app
+GARMENT_DIR = _APP_DIR / "static" / "garments"
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
@@ -25,7 +32,11 @@ class VisionService:
         """Convert the upload to a single webp file and optionally remove its background."""
         started_at = time.perf_counter()
         original_name = Path(filename or "unknown").stem
-        stored_name = f"{original_name}-{uuid.uuid4().hex[:8]}.webp"
+        # Sanitize the stem so URL-unsafe / filesystem-unsafe characters
+        # (notably '!' from Huawei Cloud OBS thumbnail directives like
+        # '008.jpg!list1x.webp') don't leak into the stored filename.
+        safe_stem = self._sanitize_stem(original_name)
+        stored_name = f"{safe_stem}-{uuid.uuid4().hex[:8]}.webp"
         stored_path = GARMENT_DIR / stored_name
         logger.info(
             "Vision image ingestion started: filename=%s size_bytes=%s target=%s",
@@ -84,6 +95,23 @@ class VisionService:
             return image
 
         raise TypeError(f"Unsupported image type: {type(value)!r}")
+
+    @staticmethod
+    def _sanitize_stem(stem: str) -> str:
+        """Make a stem safe to use as a static-file name.
+
+        Strips Huawei Cloud / Aliyun OSS thumbnail transform suffixes
+        (e.g. ``!list1x``) and replaces any character that is not
+        [A-Za-z0-9_-] with '_'. Also caps the length to keep URLs short.
+        """
+        # Drop the first '!' and everything after it — that's the
+        # CDN thumbnail transform directive we don't need on disk.
+        if "!" in stem:
+            stem = stem.split("!", 1)[0]
+        safe = re.sub(r"[^A-Za-z0-9_-]", "_", stem).strip("_")
+        if not safe:
+            safe = "garment"
+        return safe[:48]
 
     def _prepare_image(self, image: Image.Image) -> Image.Image:
         image = ImageOps.exif_transpose(image)

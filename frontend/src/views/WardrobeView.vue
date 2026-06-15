@@ -46,8 +46,14 @@
           @click="viewDetail(cloth)"
         >
           <div class="item-image">
-            <img :src="cloth.image" :alt="cloth.name" loading="lazy" />
+            <img
+              :src="cloth.image"
+              :alt="cloth.name"
+              loading="lazy"
+              @error="onImageError($event, cloth)"
+            />
             <span v-if="cloth.status === 'washing'" class="status-badge">清洗中</span>
+            <span v-if="cloth.imageMissing" class="missing-badge">图片缺失</span>
           </div>
           <div class="item-info">
             <p class="item-name">{{ cloth.name }}</p>
@@ -119,6 +125,24 @@ const toggleStatus = (cloth) => {
   trigger('light')
   const newStatus = cloth.status === 'available' ? 'washing' : 'available'
   wardrobeStore.updateClothStatus(cloth.id, newStatus)
+}
+
+const onImageError = (event, cloth) => {
+  // The image_url in the DB may reference a file that's no longer on disk
+  // (e.g. container was rebuilt without a volume). Fall back to a placeholder
+  // and mark the item so the UI can surface the issue to the user.
+  const img = event?.target
+  if (!img || img.dataset.fallback) return
+  img.dataset.fallback = '1'
+  img.src =
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+      '<rect width="100" height="100" fill="#f3f4f6"/>' +
+      '<text x="50" y="55" text-anchor="middle" font-size="40" fill="#9ca3af">👕</text>' +
+      '</svg>'
+    )
+  if (cloth) cloth.imageMissing = true
 }
 </script>
 
@@ -346,6 +370,18 @@ const toggleStatus = (cloth) => {
   right: 8px;
   background: rgba(255, 152, 0, 0.9);
   color: white;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.missing-badge {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
   padding: 4px 8px;
   border-radius: 8px;
   font-size: 10px;

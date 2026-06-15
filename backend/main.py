@@ -1,5 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
+from pathlib import Path
 import logging
 
 from fastapi import FastAPI
@@ -9,8 +10,17 @@ from app.core.logging import setup_logging
 from app.api.v1 import auth, daily_tips, garments, outfit, user
 from app.services.llm_health import check_llm_api_availability
 
+# Anchor the static-files directory to the location of THIS source file so
+# the path is correct regardless of the process CWD. The Docker image runs
+# with CWD=/app but the code lives in /app/backend/app/..., so a relative
+# path like "app/static" would resolve to /app/app/static (one level too
+# high) and the upload code (which writes to the same path) would silently
+# put files where the StaticFiles mount can't reach them.
+_STATIC_DIR = Path(__file__).resolve().parent / "app" / "static"
+_STATIC_DIR.mkdir(parents=True, exist_ok=True)
+
 settings = get_settings()
-setup_logging(level="DEBUG" if settings.debug else "INFO")
+setup_logging(level=settings.log_level)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
@@ -73,7 +83,7 @@ async def lifespan(_: FastAPI):
 app.router.lifespan_context = lifespan
 
 # Serve uploaded/static images
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
 
 @app.get("/health")

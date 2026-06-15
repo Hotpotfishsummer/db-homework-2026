@@ -106,6 +106,32 @@ async def list_garments(
     }
 
 
+@router.delete("/{item_id}")
+async def delete_garment(
+    item_id: int,
+    user: dict = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Soft-delete a garment from the user's wardrobe.
+
+    The row is kept in the DB with ``deleted_at`` set, so it disappears
+    from the wardrobe list and AI recommendations immediately. The image
+    file on disk is intentionally left in place to allow restore / undo
+    flows; pass ``?purge=true`` once that's wired up.
+    """
+    resolved_user_id = await _resolve_user_id(user, db)
+    repository = ClothesRepository(db)
+    image_url = await repository.delete(resolved_user_id, item_id)
+    if image_url is None:
+        raise HTTPException(status_code=404, detail="Garment not found")
+    await db.commit()
+    return {
+        "code": 200,
+        "msg": "success",
+        "data": {"item_id": item_id, "image_url": image_url},
+    }
+
+
 @router.post("/detect")
 async def detect_garment(
     image: UploadFile = File(...),

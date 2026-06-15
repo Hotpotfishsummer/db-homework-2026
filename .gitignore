@@ -8,7 +8,6 @@ frontend/.env.*.local
 frontend/.vite/
 frontend/.cache/
 npm-debug.log*
-frontend/public/.dev_skip_login
 
 # 后端
 backend/.pytest_cache/
@@ -20,8 +19,10 @@ backend/venv/
 backend/.coverage
 backend/app/static/raw/*
 backend/app/static/processed/*
+backend/app/static/garments/*
 !backend/app/static/raw/.gitkeep
 !backend/app/static/processed/.gitkeep
+!backend/app/static/garments/.gitkeep
 
 # Python
 *.pyc

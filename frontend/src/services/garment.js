@@ -97,3 +97,31 @@ export const listGarments = async () => {
     return { code: 500, msg: '网络错误' }
   }
 }
+
+/**
+ * 删除当前用户的某件衣物
+ * 后端会软删除（设置 deleted_at），之后不会再出现在衣橱列表中。
+ * @param {number|string} itemId
+ * @returns {Promise<{code:number, data:Object, msg:string}>}
+ */
+export const deleteGarment = async (itemId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/garments/${itemId}`, {
+      method: 'DELETE',
+      headers: createAuthHeaders(),
+    })
+
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      return {
+        code: response.status,
+        msg: data?.detail || data?.msg || '删除衣物失败'
+      }
+    }
+
+    return { code: data.code ?? 200, data, msg: data.msg || 'ok' }
+  } catch (error) {
+    console.error('删除衣物失败:', error)
+    return { code: 500, msg: '网络错误' }
+  }
+}
