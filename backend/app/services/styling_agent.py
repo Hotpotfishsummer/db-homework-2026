@@ -1,57 +1,45 @@
+"""Outfit recommendation agent (衣橱内组合).
+
+Refactored to inherit LLM/agent plumbing from ``BaseAgentService`` (see
+``base_agent.py``). This module owns:
+
+- Outfit-specific tool set (history, style rules, save_recommendation)
+- Outfit system/user prompts
+- JSON normalization to the outfit response shape
+- Fallback templates
+"""
+
 from __future__ import annotations
 
 import json
-import uuid
 import logging
-import time
+import uuid
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_settings
-from app.services.weather import WeatherService
-from db.repositories.wardrobe_repo import ClothesRepository
-from db.repositories.user_repo import UserRepository
+from app.services.base_agent import (
+    BaseAgentService,
+    LANGCHAIN_AVAILABLE,
+    tool,
+)
 from db.repositories.recommendation_repo import RecommendationRepository
 
-settings = get_settings()
 logger = logging.getLogger(__name__)
 
-try:
-    # langchain v1.x removed the legacy `langchain.agents.AgentExecutor` and
-    # `create_tool_calling_agent` entry points. The official migration target
-    # is `langgraph-prebuilt.create_react_agent`, which returns a LangGraph
-    # compiled graph (compatible with `.ainvoke(...)`) backed by the same
-    # tool-calling semantics. We adapt the result shape below so the rest of
-    # this module keeps working with the v0.x `{"output", "intermediate_steps"}`
-    # contract.
-    from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
-    from langchain_core.tools import tool
-    from langchain_openai import ChatOpenAI
-    from langgraph.prebuilt import create_react_agent
 
-    LANGCHAIN_AVAILABLE = True
-except Exception:  # pragma: no cover - optional dependency
-    HumanMessage = None
-    AIMessage = None
-    ToolMessage = None
-    tool = None
-    ChatOpenAI = None
-    create_react_agent = None
-    LANGCHAIN_AVAILABLE = False
-
-
-class StylingAgentService:
-    """LangChain-powered orchestration layer for wardrobe advice with dynamic database tools."""
+class StylingAgentService(BaseAgentService):
+    """LangChain-powered outfit recommendation service (衣橱内组合)."""
 
     def __init__(self, session: AsyncSession):
-        self.session = session
-        self.weather_service = WeatherService()
-        self.clothes_repo = ClothesRepository(session)
-        self.user_repo = UserRepository(session)
+        super().__init__(session)
         self.recommendation_repo = RecommendationRepository(session)
 
+    # ------------------------------------------------------------------
+    # Public entry points
+    # ------------------------------------------------------------------
     async def generate_daily_tip(self, user_id: str | int | None = None, location: str | None = None) -> dict:
+        import time
         started_at = time.perf_counter()
         resolved_user_id = int(user_id) if user_id is not None else 0
         resolved_location = location or "深圳"
@@ -85,6 +73,7 @@ class StylingAgentService:
         user_id: str | int | None = None,
         location: str | None = None,
     ) -> dict:
+        import time
         started_at = time.perf_counter()
         resolved_user_id = int(user_id) if user_id is not None else 0
         resolved_location = location or "深圳"
@@ -120,154 +109,18 @@ class StylingAgentService:
         )
         return normalized
 
-    def _can_use_agent(self) -> bool:
-        # Treat the documented "your_*_api_key_here" placeholders as
-        # "not configured" so the agent doesn't try to call an LLM endpoint
-        # with a literal placeholder key (which yields a 401 mid-run).
-        def _is_configured(value: str | None) -> bool:
-            if not value:
-                return False
-            stripped = value.strip().lower()
-            if not stripped or stripped.startswith("your_") or stripped.endswith("_here"):
-                return False
-            return True
-
-        has_generic = bool(
-            _is_configured(settings.llm_api_key)
-            and settings.llm_api_base
-            and settings.llm_model
-        )
-        has_deepseek = _is_configured(settings.deepseek_api_key)
-        return bool(LANGCHAIN_AVAILABLE and (has_generic or has_deepseek))
-
-    def _build_llm(self):
-        if not self._can_use_agent():
-            raise RuntimeError("LangChain LLM is not available")
-
-        if settings.deepseek_api_key and settings.deepseek_api_key.strip() and not settings.deepseek_api_key.strip().lower().startswith("your_"):
-            api_key = settings.deepseek_api_key
-            base_url = settings.deepseek_base_url
-            model = settings.llm_model or "deepseek-chat"
-            logger.debug("Using DeepSeek LLM: base_url=%s model=%s", base_url, model)
-        else:
-            api_key = settings.llm_api_key
-            base_url = settings.llm_api_base
-            model = settings.llm_model
-            logger.debug("Using generic OpenAI-compatible LLM: base_url=%s model=%s", base_url, model)
-
-        return ChatOpenAI(
-            api_key=api_key,
-            base_url=base_url,
-            model=model,
-            temperature=settings.llm_temperature,
-            max_tokens=settings.llm_max_tokens,
-        )
-
-    async def _run_agent(self, system_prompt: str, user_prompt: str, tools: list[Any]) -> dict[str, Any]:
-        """Run the LangGraph ReAct agent and normalize the result.
-
-        langgraph's `create_react_agent` returns a compiled graph whose
-        `.ainvoke(...)` yields `{"messages": [HumanMessage, AIMessage(...),
-        ToolMessage(...), AIMessage(...), ...]}`. To keep the rest of this
-        module (the `_normalize_*_result` helpers and downstream callers)
-        unchanged, we reshape the graph result into the v0.x AgentExecutor
-        contract: `{"output": <final AI text>, "intermediate_steps":
-        [(action, observation), ...]}`.
-        """
-        logger.info("Starting agent execution: tool_count=%s prompt_chars=%s", len(tools), len(user_prompt))
-        llm = self._build_llm()
-
-        # The system prompt contains a JSON field-format spec like
-        # `{"name": string, ...}` which would otherwise be parsed as
-        # template variables if we passed a `prompt=ChatPromptTemplate(...)`
-        # to langgraph. To avoid that, we use a callable `prompt` that
-        # returns the full list of messages (system + conversation) as a
-        # plain list of BaseMessage objects — langgraph will pass this list
-        # to the model without going through template formatting.
-        from langchain_core.messages import SystemMessage
-
-        def _prompt_callable(state: dict) -> list[Any]:
-            return [SystemMessage(content=system_prompt), *state.get("messages", [])]
-
-        graph = create_react_agent(
-            llm,
-            tools,
-            prompt=_prompt_callable,
-        )
-
-        started_at = time.perf_counter()
-        result = await graph.ainvoke(
-            {"messages": [HumanMessage(content=user_prompt)]},
-            config={"recursion_limit": max(4, settings.agent_max_iterations * 2 + 2)},
-        )
-        raw_messages = result.get("messages", []) or []
-        output, intermediate_steps = self._extract_output_and_steps(raw_messages)
-        logger.info(
-            "Agent execution finished: output_chars=%s intermediate_steps=%s elapsed_ms=%.2f",
-            len(str(output)),
-            len(intermediate_steps),
-            (time.perf_counter() - started_at) * 1000,
-        )
-        logger.debug("Agent raw result keys: %s", sorted(result.keys()))
-        return {"output": output, "intermediate_steps": intermediate_steps}
-
-    @staticmethod
-    def _extract_output_and_steps(messages: list[Any]) -> tuple[str, list[tuple[Any, Any]]]:
-        """Convert a LangGraph message list into the v0.x `(output, steps)` tuple.
-
-        Walks the message list pairing each `AIMessage` that has `tool_calls`
-        with the immediately following `ToolMessage(s)`. The "output" is the
-        text content of the **last** `AIMessage` that has no tool calls (i.e.
-        the final answer the agent emitted).
-        """
-        output = ""
-        steps: list[tuple[Any, Any]] = []
-        i = 0
-        while i < len(messages):
-            msg = messages[i]
-            cls_name = type(msg).__name__
-            if cls_name == "AIMessage":
-                # Collect any tool_calls on this AIMessage.
-                tool_calls = getattr(msg, "tool_calls", None) or []
-                if tool_calls:
-                    # Pair each tool_call with the next ToolMessage sharing
-                    # the same tool_call_id (the graph emits one ToolMessage
-                    # per tool call).
-                    pending = {tc["id"]: tc for tc in tool_calls if isinstance(tc, dict) and "id" in tc}
-                    j = i + 1
-                    while j < len(messages) and pending:
-                        nxt = messages[j]
-                        if type(nxt).__name__ != "ToolMessage":
-                            j += 1
-                            continue
-                        tc_id = getattr(nxt, "tool_call_id", None)
-                        action = pending.pop(tc_id, None)
-                        if action is not None:
-                            steps.append((action, getattr(nxt, "content", "")))
-                        j += 1
-                else:
-                    # No tool calls → this is the final answer (or an interim
-                    # text-only message; we keep the latest one as `output`).
-                    text = getattr(msg, "content", "") or ""
-                    if text:
-                        output = text
-            i += 1
-        return output, steps
-
-    def _build_daily_tip_tools(
-        self,
-        user_id: int,
-        location: str,
-    ) -> list[Any]:
+    # ------------------------------------------------------------------
+    # Tool builders (outfit-specific)
+    # ------------------------------------------------------------------
+    def _build_daily_tip_tools(self, user_id: int, location: str) -> list[Any]:
         if not LANGCHAIN_AVAILABLE:
             return []
-
         return [
-            self._weather_tool(location=location),
-            self._search_wardrobe_tool(user_id=user_id),
+            self._make_weather_tool(location=location),
+            self._make_search_wardrobe_tool(user_id=user_id),
             self._count_wardrobe_tool(user_id=user_id),
             self._get_wardrobe_items_tool(user_id=user_id),
-            self._user_profile_tool(user_id=user_id),
+            self._make_user_profile_tool(user_id=user_id),
             self._history_tool(user_id=user_id),
         ]
 
@@ -280,80 +133,26 @@ class StylingAgentService:
     ) -> list[Any]:
         if not LANGCHAIN_AVAILABLE:
             return []
-
         return [
-            self._weather_tool(location=location),
-            self._search_wardrobe_tool(user_id=user_id),
+            self._make_weather_tool(location=location),
+            self._make_search_wardrobe_tool(user_id=user_id),
             self._get_wardrobe_items_tool(user_id=user_id),
             self._count_wardrobe_tool(user_id=user_id),
-            self._user_profile_tool(user_id=user_id),
+            self._make_user_profile_tool(user_id=user_id),
             self._history_tool(user_id=user_id),
             self._style_rules_tool(scene=scene),
             self._save_recommendation_tool(user_id=user_id, scene=scene),
         ]
 
-    def _weather_tool(self, location: str):
+    def _count_wardrobe_tool(self, user_id: int):
         @tool
-        async def get_weather(city: str | None = None) -> str:
-            """Get current weather for a city. Returns temperature, condition, wind, and humidity."""
-            target = city or location
-            logger.debug("Agent tool get_weather called: city=%s", target)
-            current = await self.weather_service.get_current(location=target)
-            return json.dumps(current, ensure_ascii=False)
+        async def count_wardrobe_items() -> str:
+            """Count total wardrobe items for a user."""
+            logger.debug("Agent tool count_wardrobe_items called: user_id=%s", user_id)
+            count = await self.clothes_repo.count_by_user(user_id)
+            return json.dumps({"count": count}, ensure_ascii=False)
 
-        return get_weather
-
-    def _search_wardrobe_tool(self, user_id: int):
-        @tool
-        async def search_wardrobe(
-            category: str = "",
-            season: str = "",
-            color: str = "",
-            status: str = "",
-            limit: int = 20,
-        ) -> str:
-            """Search user's wardrobe items with filters. Use to find relevant clothes for an outfit.
-            Category can be: top, bottom, outerwear, shoes, accessory, bag, other.
-            Season can be: spring, summer, autumn, winter.
-            Status can be: available, washing.
-            """
-            logger.debug(
-                "Agent tool search_wardrobe called: user_id=%s category=%s season=%s color=%s status=%s limit=%s",
-                user_id,
-                category,
-                season,
-                color,
-                status,
-                limit,
-            )
-            items = await self.clothes_repo.list_by_user(
-                user_id,
-                category=category or None,
-                season=season or None,
-                color=color or None,
-                status=status or None,
-                limit=limit,
-                offset=0,
-            )
-            payload = {
-                "items": [
-                    {
-                        "id": item.item_id,
-                        "name": item.name,
-                        "category": item.category,
-                        "color": item.color,
-                        "seasons": item.seasons,
-                        "status": item.status,
-                        "image_url": item.image_url,
-                        "attributes": item.attributes,
-                    }
-                    for item in items
-                ],
-                "count": len(items),
-            }
-            return json.dumps(payload, ensure_ascii=False)
-
-        return search_wardrobe
+        return count_wardrobe_items
 
     def _get_wardrobe_items_tool(self, user_id: int):
         @tool
@@ -380,35 +179,6 @@ class StylingAgentService:
             return json.dumps(payload, ensure_ascii=False)
 
         return get_wardrobe_items_by_ids
-
-    def _count_wardrobe_tool(self, user_id: int):
-        @tool
-        async def count_wardrobe_items() -> str:
-            """Count total wardrobe items for a user."""
-            logger.debug("Agent tool count_wardrobe_items called: user_id=%s", user_id)
-            count = await self.clothes_repo.count_by_user(user_id)
-            return json.dumps({"count": count}, ensure_ascii=False)
-
-        return count_wardrobe_items
-
-    def _user_profile_tool(self, user_id: int):
-        @tool
-        async def get_user_profile() -> str:
-            """Get user profile including display name, location, and style preference."""
-            logger.debug("Agent tool get_user_profile called: user_id=%s", user_id)
-            user = await self.user_repo.get_by_id(user_id)
-            if not user:
-                return json.dumps({"error": "User not found"}, ensure_ascii=False)
-            profile = {
-                "user_id": user.user_id,
-                "username": user.username,
-                "display_name": user.display_name,
-                "style_preference": user.style_preference,
-                "location": user.location,
-            }
-            return json.dumps(profile, ensure_ascii=False)
-
-        return get_user_profile
 
     def _history_tool(self, user_id: int):
         @tool
@@ -488,6 +258,9 @@ class StylingAgentService:
 
         return save_recommendation
 
+    # ------------------------------------------------------------------
+    # Prompts
+    # ------------------------------------------------------------------
     def _daily_tip_system_prompt(self) -> str:
         return (
             "你是时尚穿搭顾问 L-Wardrobe AI。你必须优先调用工具获取天气、衣橱、用户资料和规则，再输出简洁可执行的每日建议。"
@@ -527,6 +300,9 @@ class StylingAgentService:
             "请生成一套穿搭推荐，强调为何适合当前场景和天气。优先从可用衣橱单品中选择。"
         )
 
+    # ------------------------------------------------------------------
+    # Result normalization + fallback
+    # ------------------------------------------------------------------
     def _normalize_daily_tip_result(self, result: dict, user_id: int) -> dict:
         output = self._parse_json_output(result.get("output", ""))
         tip = output.get("tip") or output.get("description") or self._default_tip({})
@@ -569,27 +345,6 @@ class StylingAgentService:
             return data if isinstance(data, dict) else {}
         except Exception:
             return {}
-
-    def _summarize_intermediate_steps(self, intermediate_steps: list[Any]) -> list[str]:
-        summary: list[str] = []
-        for step in intermediate_steps or []:
-            try:
-                action, observation = step[0], step[1]
-                # After the langgraph migration `action` is a dict (the
-                # tool_call payload) instead of an AgentAction object. Handle
-                # both shapes so the log output stays stable.
-                if isinstance(action, dict):
-                    tool_name = action.get("name") or action.get("tool") or "tool"
-                else:
-                    tool_name = (
-                        getattr(action, "tool", None)
-                        or getattr(action, "tool_name", None)
-                        or "tool"
-                    )
-                summary.append(f"{tool_name}: {str(observation)[:120]}")
-            except Exception:
-                summary.append("tool step captured")
-        return summary
 
     def _weather_summary(self, weather: dict) -> str:
         text = weather.get("text", "晴")
