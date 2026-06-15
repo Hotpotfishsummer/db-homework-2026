@@ -5,4 +5,5 @@
 export * from './api'
 export * from './auth'
 export * from './outfit'
+export * from './recommendation'
 export * from './user'

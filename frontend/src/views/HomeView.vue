@@ -14,21 +14,55 @@
     </div>
 
     <div class="home-body">
-      <SceneSelector
-        :scenes="scenes"
-        v-model="selectedScene"
-        @update:modelValue="onSceneChange"
-      />
+      <!-- Tab 切换: AI 搭配 vs AI 推荐 -->
+      <div class="tabs-wrapper">
+        <ModeTabs v-model="activeTab" :tabs="topTabs" />
+      </div>
 
-      <OutfitRecommendSection
-        :scene-name="getSceneName"
-        :is-loading="isLoading"
-        :outfits="outfits"
-        @refresh="refreshOutfits"
-        @like="like"
-        @dislike="dislike"
-        @view-detail="viewDetail"
-      />
+      <!-- AI 搭配 (现有) -->
+      <template v-if="activeTab === 'outfit'">
+        <SceneSelector
+          :scenes="scenes"
+          v-model="selectedScene"
+          @update:modelValue="onSceneChange"
+        />
+
+        <OutfitRecommendSection
+          :scene-name="getSceneName"
+          :is-loading="isLoading"
+          :outfits="outfits"
+          @refresh="refreshOutfits"
+          @like="like"
+          @dislike="dislike"
+          @view-detail="viewDetail"
+        />
+      </template>
+
+      <!-- AI 推荐 (新) -->
+      <template v-else>
+        <SceneSelector
+          :scenes="scenes"
+          v-model="selectedScene"
+          @update:modelValue="onRecSceneChange"
+        />
+
+        <div class="rec-mode-tabs">
+          <ModeTabs v-model="recStore.mode" :tabs="recModeTabs" />
+        </div>
+
+        <RecommendationSection
+          :mode="recStore.mode"
+          :scene-name="getSceneName"
+          :is-loading="recStore.isGenerating"
+          :items="recStore.items"
+          :outfit="recStore.outfit"
+          :gap-report="recStore.gapReport"
+          :generation-error="recStore.generationError"
+          @refresh="onRecRefresh"
+          @item-bought="onItemBought"
+          @item-dismiss="onItemDismiss"
+        />
+      </template>
     </div>
 
     <BottomNav />
@@ -36,21 +70,25 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useUserStore } from '../stores/user'
 import { useWardrobeStore } from '../stores/wardrobe'
+import { useRecommendationStore } from '../stores/recommendation'
 import { useHaptics } from '../composables/useHaptics'
 import { generateOutfit } from '../services/outfit'
 import BottomNav from '../components/BottomNav.vue'
 import SceneSelector from '../components/biz/SceneSelector.vue'
 import OutfitRecommendSection from '../components/biz/OutfitRecommendSection.vue'
+import ModeTabs from '../components/biz/ModeTabs.vue'
+import RecommendationSection from '../components/biz/RecommendationSection.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const userStore = useUserStore()
 const wardrobeStore = useWardrobeStore()
+const recStore = useRecommendationStore()
 const { trigger } = useHaptics()
 
 const scenes = [
@@ -61,6 +99,17 @@ const scenes = [
   { id: 'party', name: '派对', icon: '🎉' }
 ]
 
+const topTabs = [
+  { id: 'outfit', label: 'AI 搭配', icon: '👔' },
+  { id: 'recommend', label: 'AI 推荐', icon: '🛍️' },
+]
+const recModeTabs = [
+  { id: 'items', label: '单品', icon: '🛍️' },
+  { id: 'outfit', label: '搭配', icon: '👔' },
+  { id: 'gap', label: '衣橱', icon: '📊' },
+]
+
+const activeTab = ref('outfit') // 'outfit' | 'recommend'
 const selectedScene = ref('casual')
 const outfits = ref([])
 const isLoading = ref(false)
@@ -83,6 +132,11 @@ onMounted(async () => {
 const onSceneChange = (id) => {
   trigger('light')
   refreshOutfits()
+}
+
+const onRecSceneChange = () => {
+  trigger('light')
+  onRecRefresh()
 }
 
 const refreshOutfits = async () => {
@@ -143,36 +197,11 @@ const loadMockOutfits = () => {
   const availableCount = availableClothes.length
 
   const sceneOutfits = {
-    commute: {
-      name: '商务精英穿搭',
-      description: '干练得体，尽显专业气质',
-      matchRate: availableCount >= 3 ? 96 : 80,
-      reason: '基于你的职场风格偏好推荐'
-    },
-    date: {
-      name: '优雅约会装',
-      description: '温柔大方，让他心动',
-      matchRate: availableCount >= 4 ? 95 : 75,
-      reason: '根据你的甜美风格推荐'
-    },
-    casual: {
-      name: '周末休闲风',
-      description: '舒适自在，随性而为',
-      matchRate: availableCount >= 2 ? 97 : 85,
-      reason: '与你衣橱中的基础款完美匹配'
-    },
-    sports: {
-      name: '健身运动装',
-      description: '透气舒适，动力满满',
-      matchRate: availableCount >= 2 ? 95 : 78,
-      reason: '根据你的运动频率推荐'
-    },
-    party: {
-      name: '派对女王装',
-      description: '闪耀全场，惊艳四方',
-      matchRate: availableCount >= 3 ? 94 : 70,
-      reason: '亮片设计，灯光下更耀眼'
-    }
+    commute: { name: '商务精英穿搭', description: '干练得体，尽显专业气质', matchRate: availableCount >= 3 ? 96 : 80, reason: '基于你的职场风格偏好推荐' },
+    date: { name: '优雅约会装', description: '温柔大方，让他心动', matchRate: availableCount >= 4 ? 95 : 75, reason: '根据你的甜美风格推荐' },
+    casual: { name: '周末休闲风', description: '舒适自在，随性而为', matchRate: availableCount >= 2 ? 97 : 85, reason: '与你衣橱中的基础款完美匹配' },
+    sports: { name: '健身运动装', description: '透气舒适，动力满满', matchRate: availableCount >= 2 ? 95 : 78, reason: '根据你的运动频率推荐' },
+    party: { name: '派对女王装', description: '闪耀全场，惊艳四方', matchRate: availableCount >= 3 ? 94 : 70, reason: '亮片设计，灯光下更耀眼' }
   }
 
   const sceneData = sceneOutfits[selectedScene.value]
@@ -208,6 +237,45 @@ const viewDetail = (outfit) => {
   trigger('medium')
   router.push(`/outfit/${outfit.id}`)
 }
+
+// ----- AI 推荐 handlers -----
+async function onRecRefresh() {
+  trigger('medium')
+  const scene = selectedScene.value
+  recStore.selectScene(scene)
+  if (recStore.mode === 'items') {
+    await recStore.startItemsGeneration({ scene })
+  } else if (recStore.mode === 'outfit') {
+    await recStore.startOutfitGeneration({ scene })
+  } else {
+    await recStore.startGapAnalysis()
+  }
+}
+
+async function onItemBought(item) {
+  if (!item.id) return
+  try {
+    await recStore.markBought(item.id)
+    trigger('success')
+  } catch (e) {
+    console.warn('mark bought failed', e)
+  }
+}
+
+async function onItemDismiss(item) {
+  if (!item.id) return
+  try {
+    await recStore.dismissItem(item.id)
+    trigger('light')
+  } catch (e) {
+    console.warn('dismiss failed', e)
+  }
+}
+
+// When the rec mode changes, generate fresh data for the new mode
+watch(() => recStore.mode, () => {
+  onRecRefresh()
+})
 </script>
 
 <style scoped>
@@ -259,64 +327,13 @@ const viewDetail = (outfit) => {
   .home-header .header-left {
     text-align: left;
   }
-
-  .home-header .header-right {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 8px;
-  }
-
-  .home-header .header-right .quick-action {
-    display: flex;
-    gap: 12px;
-  }
-
-  .home-header .header-right .action-chip {
-    padding: 10px 20px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 9999px;
-    font-size: 14px;
-    color: white;
-    cursor: pointer;
-    transition: all 0.2s;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-  }
-
-  .home-header .header-right .action-chip:active {
-    transform: scale(0.95);
-    background: rgba(255, 255, 255, 0.3);
-  }
 }
 
-.home-header h1 {
-  font-size: 24px;
-  font-weight: 600;
-  letter-spacing: -0.374px;
-  color: var(--on-primary);
-  margin-bottom: 4px;
+.tabs-wrapper {
+  padding: 16px 20px 0;
 }
 
-@media (min-width: 1024px) {
-  .home-header h1 {
-    font-size: var(--text-xl);
-    margin-bottom: 0;
-  }
-}
-
-.home-header p {
-  font-size: 14px;
-  letter-spacing: -0.224px;
-  color: rgba(255, 255, 255, 0.8);
-}
-
-@media (min-width: 1024px) {
-  .home-header p {
-    font-size: 16px;
-  }
-}
-
-.home-header .header-right {
-  display: none;
+.rec-mode-tabs {
+  padding: 12px 20px 0;
 }
 </style>
