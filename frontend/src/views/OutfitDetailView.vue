@@ -45,24 +45,29 @@
           </div>
           <div class="item-details">
             <h4>{{ item.name }}</h4>
-            <p>{{ item.category }}</p>
+            <p>{{ item.category }}<span v-if="item.needBuy" class="need-buy-tag"> 需购</span></p>
+            <p v-if="item.reason" class="item-reason">{{ item.reason }}</p>
           </div>
           <button class="item-action" @click="viewInWardrobe(item)">
-            📍
+            {{ item.needBuy ? '🛒' : '📍' }}
           </button>
         </div>
       </div>
     </div>
 
-    <div class="ai-suggestions">
-      <h2 class="section-title">✨ AI 搭配建议</h2>
-
+    <div v-if="hasNeedBuy" class="ai-suggestions">
+      <h2 class="section-title">✨ 需购单品建议</h2>
+      <p class="suggestion-hint">以下单品不在你的衣橱中,点击「查看衣橱」可挑选类似的款式补齐:</p>
       <div class="suggestion-cards">
-        <div class="suggestion-card" v-for="(suggest, idx) in suggestions" :key="idx">
-          <div class="suggest-icon">{{ suggest.icon }}</div>
+        <div
+          v-for="(slot, idx) in needBuySlots"
+          :key="idx"
+          class="suggestion-card"
+        >
+          <div class="suggest-icon">🛍️</div>
           <div class="suggest-content">
-            <h4>{{ suggest.title }}</h4>
-            <p>{{ suggest.desc }}</p>
+            <h4>{{ slot.name }}</h4>
+            <p>{{ slot.reason || `${slot.category} 类单品,适合当前场景` }}</p>
           </div>
         </div>
       </div>
@@ -73,7 +78,7 @@
         👗 查看衣橱
       </button>
       <button class="action-btn primary" :class="{ liked: isLiked }" @click="toggleLike">
-        {{ isLiked ? '❤️ 已收藏' : '🤍 收藏' }}
+        {{ primaryActionLabel }}
       </button>
     </div>
   </div>
@@ -84,12 +89,14 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { useOutfitStore } from '../stores/outfit'
+import { useRecommendationStore } from '../stores/recommendation'
 import { useHaptics } from '../composables/useHaptics'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const outfitStore = useOutfitStore()
+const recStore = useRecommendationStore()
 const { trigger } = useHaptics()
 
 const outfit = ref({
@@ -119,6 +126,11 @@ const isLiked = computed(() => {
   return userStore.likedOutfits.some(o => o.id === outfit.value.id)
 })
 
+const needBuySlots = computed(() => outfitItems.value.filter(i => i.needBuy))
+const hasNeedBuy = computed(() => needBuySlots.value.length > 0)
+
+const primaryActionLabel = computed(() => isLiked.value ? '❤️ 已收藏' : '🤍 收藏')
+
 onMounted(() => {
   const outfitId = route.params.id
   if (outfitId) {
@@ -128,7 +140,7 @@ onMounted(() => {
 })
 
 const loadOutfit = (id) => {
-  // 优先使用从搭配页传来的 outfit 数据
+  // 1. 优先使用从搭配页(AI 搭配)传来的 outfit 数据
   if (outfitStore.currentOutfit && outfitStore.currentOutfit.outfitId === id) {
     const o = outfitStore.currentOutfit
     outfit.value = {
@@ -144,14 +156,50 @@ const loadOutfit = (id) => {
       ...item,
       category: getCategoryLabel(item.category)
     }))
-  } else {
-    console.log('加载穿搭:', id)
+    return
   }
+
+  // 2. 其次使用从 AI 推荐页传来的 currentOutfit (HomeView 合成的 id 形如 rec-<scene>-<name>)
+  if (recStore.currentOutfit) {
+    const o = recStore.currentOutfit
+    const expectedId = o.id || `rec-${recStore.selectedScene}-${(o.name || 'outfit').replace(/\s+/g, '-')}`
+    if (expectedId === id || id?.startsWith('rec-')) {
+      outfit.value = {
+        id,
+        name: o.name || 'AI 搭配方案',
+        description: o.description || o.reason || 'AI 为你挑选的整体穿搭方案',
+        scene: o.scene || recStore.selectedScene || '推荐',
+        matchRate: o.matchRate ?? 88,
+        reason: o.reason || o.description || '混合你衣橱里已有的衣服与仍需新购的单品',
+        image: o.image || pickFirstImage(o)
+      }
+      outfitItems.value = (o.slots || []).map(slot => ({
+        id: slot.id || slot.name,
+        name: slot.name,
+        category: getCategoryLabel(slot.category),
+        image: slot.image,
+        reason: slot.reason,
+        needBuy: !!slot.need_buy
+      }))
+      return
+    }
+  }
+
+  // 3. 兜底: 使用占位数据
+  console.log('未找到搭配数据, 使用占位:', id)
+}
+
+const pickFirstImage = (o) => {
+  if (o?.slots?.length) {
+    const slot = o.slots.find(s => !s.need_buy && s.image) || o.slots.find(s => s.image)
+    if (slot?.image) return slot.image
+  }
+  return 'https://picsum.photos/400/600?random=20'
 }
 
 const getCategoryLabel = (cat) => {
-  const map = { top: '上装', bottom: '下装', shoes: '鞋靴', accessory: '配饰', bag: '包包' }
-  return map[cat] || cat
+  const map = { top: '上装', bottom: '下装', shoes: '鞋靴', accessory: '配饰', bag: '包包', outerwear: '外套' }
+  return map[cat] || cat || '单品'
 }
 
 const goBack = () => {
@@ -404,6 +452,32 @@ const viewInWardrobe = (item) => {
 .item-action:active {
   transform: scale(0.9);
   background: var(--border-color);
+}
+
+.need-buy-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  background: linear-gradient(135deg, #ff6f61 0%, #ff9061 100%);
+  color: #fff;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  vertical-align: middle;
+}
+
+.item-reason {
+  font-size: 12px;
+  color: var(--text-tertiary, #888);
+  margin: 4px 0 0;
+  line-height: 1.5;
+}
+
+.suggestion-hint {
+  font-size: 12px;
+  color: var(--text-tertiary, #888);
+  margin: -8px 0 14px;
 }
 
 .suggestion-cards {

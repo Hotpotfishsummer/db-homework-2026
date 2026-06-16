@@ -3,10 +3,60 @@
     <div class="section-title">
       <span class="title-icon">{{ modeIcon }}</span>
       <span>{{ sceneName }} {{ modeLabel }}</span>
-      <button class="refresh-btn" @click="onRefresh" :class="{ spinning: isLoading }">
-        🔄
-      </button>
     </div>
+
+    <!-- 概念提示卡: 解释当前 tab 的含义 -->
+    <button
+      class="concept-hint"
+      :class="{ expanded: showHint }"
+      @click="showHint = !showHint"
+      :aria-expanded="showHint"
+      :aria-label="showHint ? '收起说明' : '展开说明: 单品 / 搭配 / 衣橱 是什么'"
+    >
+      <span class="hint-icon">💡</span>
+      <span class="hint-summary">
+        {{ showHint ? '收起说明' : '这三个 tab 分别是?' }}
+      </span>
+      <span class="hint-toggle">{{ showHint ? '▴' : '▾' }}</span>
+    </button>
+
+    <Transition name="hint-fade">
+      <div v-if="showHint" class="concept-hint-panel">
+        <div class="hint-row">
+          <span class="hint-emoji">🛍️</span>
+          <div class="hint-text">
+            <strong>单品</strong> — AI 从场景出发,推荐<em>可以买</em>的具体衣物(外套、裤子、鞋等),
+            告诉你为什么需要它、怎么搭。
+          </div>
+        </div>
+        <div class="hint-row">
+          <span class="hint-emoji">👔</span>
+          <div class="hint-text">
+            <strong>搭配</strong> — 一整套<em>上身方案</em>:
+            用你衣橱里已有的 + 还需补的单品组合起来,给出每件衣服的搭配理由。
+          </div>
+        </div>
+        <div class="hint-row">
+          <span class="hint-emoji">📊</span>
+          <div class="hint-text">
+            <strong>衣橱</strong> — 衣橱<em>缺口分析</em>报告:
+            统计你现有衣物的类别/颜色/季节覆盖情况,指出哪里重复、哪里不足。
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- 显眼的主操作按钮: 用户唯一会触发后端 agent 的入口 -->
+    <button
+      class="primary-refresh"
+      :class="{ spinning: isLoading, idle: isIdle }"
+      :disabled="isLoading"
+      @click="onRefresh"
+      :aria-label="idleLabel"
+    >
+      <span class="primary-refresh-icon">{{ isLoading ? '⏳' : (isIdle ? '✨' : '🔄') }}</span>
+      <span class="primary-refresh-text">{{ buttonLabel }}</span>
+    </button>
 
     <div v-if="isLoading" class="ai-generating">
       <div class="generating-animation">
@@ -25,9 +75,16 @@
     <!-- Mode: 单品推荐 -->
     <div v-else-if="mode === 'items'" class="items-grid">
       <div v-if="!items || items.length === 0" class="empty-state">
-        <span class="empty-icon">🛍️</span>
-        <p>暂无单品推荐</p>
-        <p class="empty-hint">点击 🔄 重新生成,或切换其他场景</p>
+        <template v-if="isIdle">
+          <span class="empty-icon">✨</span>
+          <p>点击上方按钮,让 AI 为你推荐「{{ sceneName }}」场景下的可购入单品</p>
+          <p class="empty-hint">只有你主动点击后才会调用 AI,不会在切换 tab 时悄悄消耗额度</p>
+        </template>
+        <template v-else>
+          <span class="empty-icon">🛍️</span>
+          <p>暂无单品推荐</p>
+          <p class="empty-hint">点击上方「重新生成」或切换其他场景</p>
+        </template>
       </div>
       <ShoppingItemCard
         v-for="item in items"
@@ -39,13 +96,20 @@
     </div>
 
     <!-- Mode: 嵌入搭配 -->
-    <div v-else-if="mode === 'outfit' && outfit" class="shopping-outfit">
+    <div
+      v-else-if="mode === 'outfit' && outfit"
+      class="shopping-outfit clickable"
+      role="button"
+      tabindex="0"
+      @click="$emit('view-detail', outfit)"
+      @keydown.enter="$emit('view-detail', outfit)"
+    >
       <div class="outfit-header">
         <h3>{{ outfit.name }}</h3>
         <span class="match-badge">💫 {{ outfit.matchRate }}%</span>
       </div>
       <p v-if="outfit.description" class="outfit-desc">{{ outfit.description }}</p>
-      <div class="slots-grid">
+      <div class="slots-grid" @click.stop>
         <div
           v-for="(slot, idx) in outfit.slots"
           :key="idx"
@@ -64,12 +128,23 @@
           </div>
         </div>
       </div>
+      <div class="outfit-detail-cta">
+        <span>点击查看完整搭配详情</span>
+        <span class="cta-arrow">›</span>
+      </div>
     </div>
 
     <div v-else-if="mode === 'outfit' && !outfit" class="empty-state">
-      <span class="empty-icon">👔</span>
-      <p>暂无搭配方案</p>
-      <p class="empty-hint">点击 🔄 重新生成</p>
+      <template v-if="isIdle">
+        <span class="empty-icon">👔</span>
+        <p>点击上方按钮,让 AI 编排一套「{{ sceneName }}」场景下的完整搭配</p>
+        <p class="empty-hint">搭配会混合你衣橱里已有的衣服 + 仍需新购的单品</p>
+      </template>
+      <template v-else>
+        <span class="empty-icon">👔</span>
+        <p>暂无搭配方案</p>
+        <p class="empty-hint">点击上方「重新生成」</p>
+      </template>
     </div>
 
     <!-- Mode: 衣橱缺口 -->
@@ -78,9 +153,16 @@
     </div>
 
     <div v-else-if="mode === 'gap' && !gapReport" class="empty-state">
-      <span class="empty-icon">📊</span>
-      <p>暂无衣橱报告</p>
-      <p class="empty-hint">点击 🔄 生成报告</p>
+      <template v-if="isIdle">
+        <span class="empty-icon">📊</span>
+        <p>点击上方按钮,让 AI 扫描你衣橱里的每件衣服,生成缺口分析报告</p>
+        <p class="empty-hint">报告会统计类别 / 颜色 / 季节覆盖情况,指出哪里重复、哪里不足</p>
+      </template>
+      <template v-else>
+        <span class="empty-icon">📊</span>
+        <p>暂无衣橱报告</p>
+        <p class="empty-hint">点击上方「重新生成」</p>
+      </template>
     </div>
 
     <div v-if="generationError" class="error-banner">
@@ -90,7 +172,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import ShoppingItemCard from './ShoppingItemCard.vue'
 import WardrobeGapCard from './WardrobeGapCard.vue'
 
@@ -123,12 +205,21 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  /**
+   * 父级记录"用户是否已经显式点过刷新"。
+   * false → 展示引导空态(首屏 / 切 mode 后的初始态),不展示"暂无数据"。
+   */
+  hasGenerated: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits([
   'refresh',
   'item-bought',
   'item-dismiss',
+  'view-detail',
 ])
 
 const MODE_META = {
@@ -141,6 +232,25 @@ const modeIcon = computed(() => MODE_META[props.mode]?.icon || '✨')
 const modeLabel = computed(() => MODE_META[props.mode]?.label || '推荐')
 const loadingText = computed(() => MODE_META[props.mode]?.loadingText || 'AI 生成中...')
 const modeEmojis = computed(() => MODE_META[props.mode]?.emojis || ['✨', '🤖', '💡', '⭐'])
+
+// 展开/收起"单品 / 搭配 / 衣橱 是什么"的解释
+const showHint = ref(false)
+watch(() => props.mode, () => { showHint.value = false })
+
+// 用户尚未显式触发过 → 处于"待启动"状态
+const isIdle = computed(() => !props.hasGenerated && !props.isLoading)
+const idleLabel = computed(() =>
+  isIdle.value
+    ? '点击让 AI 为你生成' + modeLabel.value
+    : (props.isLoading ? 'AI 生成中…' : '重新生成' + modeLabel.value)
+)
+const buttonLabel = computed(() => {
+  if (props.isLoading) return '生成中…'
+  if (isIdle.value) {
+    return props.mode === 'gap' ? '分析我的衣橱' : '开始 AI 推荐'
+  }
+  return '重新生成'
+})
 
 function onRefresh() {
   emit('refresh')
@@ -203,6 +313,98 @@ function slotEmoji(cat) {
   font-size: 20px;
 }
 
+/* 概念提示卡: 解释"单品 / 搭配 / 衣橱"分别是什么 */
+.concept-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  margin: -8px 0 16px;
+  background: linear-gradient(135deg, #f5f0ff 0%, #ede7f6 100%);
+  border: 1px solid rgba(94, 53, 177, 0.12);
+  border-radius: 12px;
+  color: #5e35b1;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.concept-hint:hover {
+  background: linear-gradient(135deg, #ede7f6 0%, #e1d5f5 100%);
+}
+
+.concept-hint:active {
+  transform: scale(0.99);
+}
+
+.concept-hint .hint-icon {
+  font-size: 15px;
+}
+
+.concept-hint .hint-summary {
+  flex: 1;
+}
+
+.concept-hint .hint-toggle {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.concept-hint-panel {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #eee);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: -8px 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.concept-hint-panel .hint-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-secondary, #555);
+}
+
+.concept-hint-panel .hint-emoji {
+  font-size: 18px;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+
+.concept-hint-panel .hint-text strong {
+  color: var(--text-primary, #1a1a1a);
+  font-weight: 600;
+  margin-right: 2px;
+}
+
+.concept-hint-panel .hint-text em {
+  font-style: normal;
+  color: #5e35b1;
+  font-weight: 500;
+}
+
+/* 展开/收起过渡 */
+.hint-fade-enter-active,
+.hint-fade-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  overflow: hidden;
+}
+
+.hint-fade-enter-from,
+.hint-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
 .refresh-btn {
   margin-left: auto;
   background: none;
@@ -215,6 +417,107 @@ function slotEmoji(cat) {
 
 .refresh-btn.spinning {
   animation: spin 1s linear infinite;
+}
+
+/* 主操作按钮: 用户唯一会触发后端 agent 的入口 */
+.primary-refresh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 20px;
+  margin: 0 0 20px;
+  border: none;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: #ffffff;
+  cursor: pointer;
+  background: linear-gradient(135deg, #5e35b1 0%, #7e57c2 50%, #9575cd 100%);
+  box-shadow:
+    0 4px 14px rgba(94, 53, 177, 0.35),
+    0 1px 2px rgba(94, 53, 177, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transition: transform 0.12s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.primary-refresh::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.25) 50%, transparent 70%);
+  transform: translateX(-100%);
+  transition: transform 0.6s ease;
+  pointer-events: none;
+}
+
+.primary-refresh:hover:not(:disabled)::before {
+  transform: translateX(100%);
+}
+
+.primary-refresh:hover:not(:disabled) {
+  box-shadow:
+    0 6px 18px rgba(94, 53, 177, 0.45),
+    0 2px 4px rgba(94, 53, 177, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  filter: brightness(1.05);
+}
+
+.primary-refresh:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99);
+  box-shadow:
+    0 2px 8px rgba(94, 53, 177, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.primary-refresh:disabled {
+  cursor: not-allowed;
+  filter: saturate(0.85);
+  opacity: 0.9;
+}
+
+.primary-refresh.spinning {
+  background: linear-gradient(135deg, #9575cd 0%, #b39ddb 100%);
+  cursor: wait;
+}
+
+.primary-refresh.idle {
+  background: linear-gradient(135deg, #ff6f00 0%, #ffa726 50%, #ffb74d 100%);
+  box-shadow:
+    0 4px 14px rgba(255, 111, 0, 0.35),
+    0 1px 2px rgba(255, 111, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  animation: idle-pulse 2.4s ease-in-out infinite;
+}
+
+.primary-refresh.idle:hover:not(:disabled) {
+  box-shadow:
+    0 6px 18px rgba(255, 111, 0, 0.5),
+    0 2px 4px rgba(255, 111, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+@keyframes idle-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.015); }
+}
+
+.primary-refresh-icon {
+  font-size: 18px;
+  line-height: 1;
+  display: inline-block;
+}
+
+.primary-refresh.spinning .primary-refresh-icon {
+  animation: spin 1s linear infinite;
+}
+
+.primary-refresh-text {
+  white-space: nowrap;
 }
 
 @keyframes spin {
@@ -301,6 +604,39 @@ function slotEmoji(cat) {
   border-radius: 16px;
   padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.shopping-outfit.clickable {
+  cursor: pointer;
+  outline: none;
+}
+
+.shopping-outfit.clickable:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(94, 53, 177, 0.18);
+}
+
+.shopping-outfit.clickable:focus-visible {
+  box-shadow: 0 0 0 3px rgba(94, 53, 177, 0.4), 0 6px 18px rgba(94, 53, 177, 0.18);
+}
+
+.outfit-detail-cta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-color, #eee);
+  font-size: 13px;
+  color: #5e35b1;
+  font-weight: 500;
+}
+
+.outfit-detail-cta .cta-arrow {
+  font-size: 18px;
+  line-height: 1;
 }
 
 .outfit-header {

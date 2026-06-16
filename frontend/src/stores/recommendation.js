@@ -32,6 +32,8 @@ export const useRecommendationStore = defineStore('recommendation', {
     outfit: null, // { id, name, matchRate, slots, ... }
     outfitWeather: '',
     outfitGeneratedBy: '',
+    // 最近查看的搭配(点击进详情页时设置);用于路由跳走 / 刷新后 OutfitDetailView 仍能读到
+    currentOutfit: null,
 
     // 缺口报告
     gapReport: null, // { summary, gaps, total_items, dominant_colors, ... }

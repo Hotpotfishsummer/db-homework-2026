@@ -63,3 +63,6 @@ tmp/
 
 # 文档（本地笔记，不提交）
 docs/guides/vscode-docker-debug.md
+
+# 本地 AI 上下文笔记
+.github/

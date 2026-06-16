@@ -34,6 +34,7 @@
           :scene-name="getSceneName"
           :is-loading="isLoading"
           :outfits="outfits"
+          :has-generated="outfitHasGenerated"
           @refresh="refreshOutfits"
           @like="like"
           @dislike="dislike"
@@ -61,9 +62,11 @@
           :outfit="recStore.outfit"
           :gap-report="recStore.gapReport"
           :generation-error="recStore.generationError"
+          :has-generated="recHasGenerated"
           @refresh="onRecRefresh"
           @item-bought="onItemBought"
           @item-dismiss="onItemDismiss"
+          @view-detail="viewRecOutfitDetail"
         />
       </template>
     </div>
@@ -118,6 +121,13 @@ const selectedScene = ref('casual')
 const outfits = ref([])
 const isLoading = ref(false)
 
+/**
+ * AI 搭配区域是否已经被显式触发过。
+ * 只有用户主动点击刷新按钮后才会置 true,此后才能刷新;
+ * 切换顶层 tab / 场景 / 子 mode 都不再自动调用后端 agent。
+ */
+const outfitHasGenerated = ref(false)
+
 const getSceneName = computed(() => {
   const scene = scenes.find(s => s.id === selectedScene.value)
   return scene ? scene.name : '推荐'
@@ -129,27 +139,48 @@ onMounted(async () => {
     router.push('/login')
     return
   }
+  // 仅加载衣橱数据用于判断可用衣物数量,不再自动生成任何占位搭配
   await wardrobeStore.refreshWardrobe()
-  loadMockOutfits()
 })
 
+/**
+ * AI 搭配: 切换场景只更新 selectedScene,不会立刻调用 agent。
+ * 用户必须点刷新按钮才真正向后端发起请求。
+ */
 const onSceneChange = (id) => {
   trigger('light')
-  refreshOutfits()
+  selectedScene.value = id
 }
 
-const onRecSceneChange = () => {
+/**
+ * AI 推荐区域是否已经被显式触发过。
+ * 只有用户主动点击刷新按钮后才会置 true,此后才能刷新;
+ * 切换顶层 tab / 场景 / 子 mode 都不再自动调用后端 agent。
+ */
+const recHasGenerated = ref(false)
+
+/**
+ * AI 推荐: 切换场景只更新 store 的 selectedScene,不会立刻调用 agent。
+ * 用户必须点刷新按钮才真正向后端发起请求。
+ */
+const onRecSceneChange = (scene) => {
   trigger('light')
-  onRecRefresh()
+  recStore.selectScene(scene)
 }
 
+/**
+ * 用户显式点击刷新按钮才会走这里。
+ * - isLoading / hasGenerated 都重置,展示 loading;
+ * - 调后端 agent;失败 → 进入空态让用户重试(不再静默回退 mock 占位)。
+ */
 const refreshOutfits = async () => {
   if (isLoading.value) return
   trigger('medium')
   isLoading.value = true
   outfits.value = []
+  outfitHasGenerated.value = true
 
-  await new Promise(resolve => setTimeout(resolve, 800))
+  await new Promise(resolve => setTimeout(resolve, 600))
   await loadOutfits()
   isLoading.value = false
 }
@@ -174,14 +205,8 @@ const loadOutfits = async () => {
   const availableCount = availableClothes.length
 
   if (availableCount < 2) {
-    outfits.value = [{
-      id: 999,
-      name: '衣橱空空',
-      description: '快去录入衣服吧',
-      scene: getSceneChinese(selectedScene.value),
-      matchRate: 0,
-      reason: '至少需要 2 件可用衣服才能生成搭配推荐'
-    }]
+    // 衣橱不足: 不塞占位卡,留给空态组件渲染
+    outfits.value = []
     return
   }
 
@@ -191,50 +216,23 @@ const loadOutfits = async () => {
     const result = await generateOutfit({ scene: selectedScene.value, wardrobeIds })
     outfits.value = (result.outfits || []).map(item => ({ ...item, clothes: availableClothes }))
   } catch (error) {
-    console.warn('搭配生成失败，使用 Mock 数据:', error.message)
-    loadMockOutfits()
+    console.warn('搭配生成失败,等待用户重试:', error.message)
+    outfits.value = []
   }
-}
-
-const loadMockOutfits = () => {
-  const availableClothes = wardrobeStore.availableClothes
-  const availableCount = availableClothes.length
-
-  const sceneOutfits = {
-    commute: { name: '商务精英穿搭', description: '干练得体，尽显专业气质', matchRate: availableCount >= 3 ? 96 : 80, reason: '基于你的职场风格偏好推荐' },
-    date: { name: '优雅约会装', description: '温柔大方，让他心动', matchRate: availableCount >= 4 ? 95 : 75, reason: '根据你的甜美风格推荐' },
-    casual: { name: '周末休闲风', description: '舒适自在，随性而为', matchRate: availableCount >= 2 ? 97 : 85, reason: '与你衣橱中的基础款完美匹配' },
-    sports: { name: '健身运动装', description: '透气舒适，动力满满', matchRate: availableCount >= 2 ? 95 : 78, reason: '根据你的运动频率推荐' },
-    party: { name: '派对女王装', description: '闪耀全场，惊艳四方', matchRate: availableCount >= 3 ? 94 : 70, reason: '亮片设计，灯光下更耀眼' }
-  }
-
-  const sceneData = sceneOutfits[selectedScene.value]
-  outfits.value = [{
-    id: Date.now(),
-    name: sceneData.name,
-    description: sceneData.description,
-    scene: getSceneChinese(selectedScene.value),
-    matchRate: sceneData.matchRate,
-    reason: sceneData.reason,
-    clothes: availableClothes
-  }]
 }
 
 const like = (outfit) => {
   trigger('success')
   userStore.likeOutfit(outfit)
-  outfits.value.shift()
-  if (outfits.value.length === 0) {
-    setTimeout(loadMockOutfits, 500)
-  }
+  // 收藏后清空当前结果,等待用户主动刷新;不静默补 mock
+  outfits.value = []
+  outfitHasGenerated.value = false
 }
 
 const dislike = (index) => {
   trigger('light')
-  outfits.value.shift()
-  if (outfits.value.length === 0) {
-    setTimeout(loadMockOutfits, 500)
-  }
+  outfits.value = []
+  outfitHasGenerated.value = false
 }
 
 const viewDetail = (outfit) => {
@@ -243,10 +241,16 @@ const viewDetail = (outfit) => {
 }
 
 // ----- AI 推荐 handlers -----
+/**
+ * 用户显式点击刷新按钮才会走这里。
+ * - 若切换了 mode,需要先清空旧数据再生成;
+ * - 若切了场景但 mode 没变,store 内的 selectedScene 已经被 onRecSceneChange 更新过,直接生成即可。
+ */
 async function onRecRefresh() {
   trigger('medium')
   const scene = selectedScene.value
   recStore.selectScene(scene)
+  recHasGenerated.value = true
   if (recStore.mode === 'items') {
     await recStore.startItemsGeneration({ scene })
   } else if (recStore.mode === 'outfit') {
@@ -276,10 +280,25 @@ async function onItemDismiss(item) {
   }
 }
 
-// When the rec mode changes, generate fresh data for the new mode
+/**
+ * AI 推荐 → 搭配 tab 下的"整套搭配"点击跳详情。
+ * 详情页从 recStore.currentOutfit 读数据。
+ */
+const viewRecOutfitDetail = (outfit) => {
+  trigger('medium')
+  recStore.currentOutfit = outfit
+  // AI 推荐生成的搭配 id 可能是临时名(如 'shopping-outfit-casual'),用 scene+name 合成一个稳定路由 id
+  const id = outfit.id || `rec-${recStore.selectedScene}-${(outfit.name || 'outfit').replace(/\s+/g, '-')}`
+  router.push(`/outfit/${id}`)
+}
+
+// mode 切换时: 不再自动触发后端,只清空旧结果,等待用户点刷新。
 watch(() => recStore.mode, () => {
-  onRecRefresh()
+  recStore.reset()
 })
+
+// 切回"AI 推荐"顶层 tab 时不触发,但如果是首次进入且数据为空,也不主动拉取,等用户点刷新。
+
 </script>
 
 <style scoped>
