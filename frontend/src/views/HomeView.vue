@@ -14,6 +14,9 @@
     </div>
 
     <div class="home-body">
+      <!-- User LLM hint (shown when no user LLM is configured) -->
+      <HomeViewUserLLMHint />
+
       <!-- Tab 切换: AI 搭配 vs AI 推荐 -->
       <div class="tabs-wrapper">
         <ModeTabs v-model="activeTab" :tabs="topTabs" />
@@ -83,6 +86,7 @@ import SceneSelector from '../components/biz/SceneSelector.vue'
 import OutfitRecommendSection from '../components/biz/OutfitRecommendSection.vue'
 import ModeTabs from '../components/biz/ModeTabs.vue'
 import RecommendationSection from '../components/biz/RecommendationSection.vue'
+import HomeViewUserLLMHint from '../components/HomeViewUserLLMHint.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
