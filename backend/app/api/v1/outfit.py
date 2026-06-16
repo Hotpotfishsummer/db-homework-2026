@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import require_user
+from app.core.user_llm import apply_user_llm, parse_user_llm_headers
 from app.models.schemas import OutfitRecommendRequest
 from app.services.styling_agent import StylingAgentService
 from db import get_db
@@ -13,6 +14,7 @@ router = APIRouter(prefix="/outfit", tags=["outfit"])
 @router.post("/recommend")
 async def recommend_outfit(
     request: OutfitRecommendRequest,
+    http_request: Request,
     user: dict = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -21,14 +23,20 @@ async def recommend_outfit(
 
     The LangChain Agent dynamically queries weather, wardrobe, and user profile
     to produce a contextual recommendation with minimal token usage.
+
+    If the user supplied their own LLM (via X-User-LLM-* headers), the
+    agent uses that LLM instead of the server's .env-configured one.
     """
+    user_llm = parse_user_llm_headers(http_request)
     agent = StylingAgentService(db)
-    result = await agent.recommend_outfit(
-        scene=request.scene,
-        wardrobe_ids=request.wardrobeIds,
-        user_id=user.get("user_id"),
-        location=user.get("location"),
-    )
+    with apply_user_llm(user_llm):
+        result = await agent.recommend_outfit(
+            scene=request.scene,
+            wardrobe_ids=request.wardrobeIds,
+            user_id=user.get("user_id"),
+            location=user.get("location"),
+            user_llm=user_llm,
+        )
 
     scene_map = {
         "commute": "通勤",

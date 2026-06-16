@@ -31,6 +31,7 @@ from app.services.base_agent import (
     LANGCHAIN_AVAILABLE,
     tool,
 )
+from app.core.user_llm import UserLLMConfig
 from db.repositories.shopping_recommendation_repo import ShoppingRecommendationRepository
 
 logger = logging.getLogger(__name__)
@@ -65,6 +66,7 @@ class RecommendationAgentService(BaseAgentService):
         user_id: str | int | None = None,
         location: str | None = None,
         gap_focus: str | None = None,
+        user_llm: UserLLMConfig | None = None,
     ) -> dict:
         started_at = time.perf_counter()
         resolved_user_id = int(user_id) if user_id is not None else 0
@@ -74,7 +76,7 @@ class RecommendationAgentService(BaseAgentService):
             scene, gap_focus, resolved_user_id, resolved_location,
         )
 
-        if not self._can_use_agent():
+        if not self._can_use_agent(user_llm=user_llm):
             logger.warning("Items recommendation falling back because agent is unavailable")
             return self._fallback_items(scene, gap_focus)
 
@@ -87,6 +89,7 @@ class RecommendationAgentService(BaseAgentService):
                 scene=scene, user_id=resolved_user_id, location=resolved_location, gap_focus=gap_focus,
             ),
             tools=tools,
+            user_llm=user_llm,
         )
         normalized = self._normalize_items_result(
             result, scene=scene, user_id=resolved_user_id, location=resolved_location,
@@ -120,6 +123,7 @@ class RecommendationAgentService(BaseAgentService):
         scene: str,
         user_id: str | int | None = None,
         location: str | None = None,
+        user_llm: UserLLMConfig | None = None,
     ) -> dict:
         started_at = time.perf_counter()
         resolved_user_id = int(user_id) if user_id is not None else 0
@@ -129,7 +133,7 @@ class RecommendationAgentService(BaseAgentService):
             scene, resolved_user_id, resolved_location,
         )
 
-        if not self._can_use_agent():
+        if not self._can_use_agent(user_llm=user_llm):
             logger.warning("Shopping-outfit falling back because agent is unavailable")
             return self._fallback_shopping_outfit(scene)
 
@@ -140,6 +144,7 @@ class RecommendationAgentService(BaseAgentService):
                 scene=scene, user_id=resolved_user_id, location=resolved_location,
             ),
             tools=tools,
+            user_llm=user_llm,
         )
         normalized = self._normalize_shopping_outfit_result(
             result, scene=scene, user_id=resolved_user_id, location=resolved_location,
@@ -155,6 +160,7 @@ class RecommendationAgentService(BaseAgentService):
         self,
         user_id: str | int | None = None,
         location: str | None = None,
+        user_llm: UserLLMConfig | None = None,
     ) -> dict:
         started_at = time.perf_counter()
         resolved_user_id = int(user_id) if user_id is not None else 0
@@ -169,7 +175,7 @@ class RecommendationAgentService(BaseAgentService):
         # Step 2: if LLM available, polish the report with natural-language
         # summary + per-category advice. Otherwise return a deterministic
         # fallback that the frontend can render.
-        if not self._can_use_agent():
+        if not self._can_use_agent(user_llm=user_llm):
             logger.warning("Gap analysis falling back because agent is unavailable")
             return self._fallback_gap_report(gap_data, resolved_user_id)
 
@@ -178,6 +184,7 @@ class RecommendationAgentService(BaseAgentService):
             system_prompt=self._gap_system_prompt(),
             user_prompt=self._gap_user_prompt(user_id=resolved_user_id, gap_data=gap_data),
             tools=tools,
+            user_llm=user_llm,
         )
         normalized = self._normalize_gap_result(result, gap_data, resolved_user_id)
         logger.info(

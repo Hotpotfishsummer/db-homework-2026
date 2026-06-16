@@ -4,6 +4,36 @@ from datetime import datetime
 from typing import Literal
 
 
+# ---------------- User-supplied LLM test schemas (new) ----------------
+
+class TestKeyRequest(BaseModel):
+    """Schema for POST /api/v1/user/llm/test-key."""
+    api_key: str = Field(..., min_length=1, max_length=500)
+    base_url: str = Field(..., min_length=1, max_length=500)
+
+
+class TestKeyResponse(BaseModel):
+    """Response for /user/llm/test-key."""
+    available: bool
+    model_count: int = 0
+    models_sample: list[str] = Field(default_factory=list)
+    message: str = ""
+
+
+class TestVisionResponse(BaseModel):
+    """Response for /user/llm/test-vision (multipart upload)."""
+    multimodal_ok: bool
+    response_text: str = ""
+    error: str | None = None
+
+
+class ListModelsResponse(BaseModel):
+    """Response for GET /user/llm/models."""
+    available: bool
+    models: list[str] = Field(default_factory=list)
+    message: str = ""
+
+
 # ---------------- AI Recommendation schemas (new) ----------------
 
 class ItemRecommendRequest(BaseModel):

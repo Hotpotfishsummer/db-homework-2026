@@ -23,6 +23,7 @@ from app.services.base_agent import (
     LANGCHAIN_AVAILABLE,
     tool,
 )
+from app.core.user_llm import UserLLMConfig
 from db.repositories.recommendation_repo import RecommendationRepository
 
 logger = logging.getLogger(__name__)
@@ -38,14 +39,19 @@ class StylingAgentService(BaseAgentService):
     # ------------------------------------------------------------------
     # Public entry points
     # ------------------------------------------------------------------
-    async def generate_daily_tip(self, user_id: str | int | None = None, location: str | None = None) -> dict:
+    async def generate_daily_tip(
+        self,
+        user_id: str | int | None = None,
+        location: str | None = None,
+        user_llm: "UserLLMConfig | None" = None,
+    ) -> dict:
         import time
         started_at = time.perf_counter()
         resolved_user_id = int(user_id) if user_id is not None else 0
         resolved_location = location or "深圳"
         logger.info("Daily tip generation started: user_id=%s location=%s", resolved_user_id, resolved_location)
 
-        if not self._can_use_agent():
+        if not self._can_use_agent(user_llm=user_llm):
             logger.warning("Daily tip generation falling back because agent is unavailable")
             weather = await self.weather_service.get_current(location=resolved_location)
             return self._fallback_daily_tip(weather, [])
@@ -57,6 +63,7 @@ class StylingAgentService(BaseAgentService):
             system_prompt=self._daily_tip_system_prompt(),
             user_prompt=self._daily_tip_user_prompt(user_id=resolved_user_id, location=resolved_location),
             tools=tools,
+            user_llm=user_llm,
         )
         normalized = self._normalize_daily_tip_result(result, resolved_user_id)
         logger.info(
@@ -72,6 +79,7 @@ class StylingAgentService(BaseAgentService):
         wardrobe_ids: list[int] | None = None,
         user_id: str | int | None = None,
         location: str | None = None,
+        user_llm: "UserLLMConfig | None" = None,
     ) -> dict:
         import time
         started_at = time.perf_counter()
@@ -85,7 +93,7 @@ class StylingAgentService(BaseAgentService):
             resolved_location,
         )
 
-        if not self._can_use_agent():
+        if not self._can_use_agent(user_llm=user_llm):
             logger.warning("Outfit recommendation falling back because agent is unavailable")
             weather = await self.weather_service.get_current(location=resolved_location)
             return self._fallback_outfit(scene, [], weather)
@@ -99,6 +107,7 @@ class StylingAgentService(BaseAgentService):
                 scene=scene, wardrobe_ids=wardrobe_ids or [], user_id=resolved_user_id, location=resolved_location
             ),
             tools=tools,
+            user_llm=user_llm,
         )
         normalized = self._normalize_outfit_result(result, scene=scene, user_id=resolved_user_id)
         logger.info(

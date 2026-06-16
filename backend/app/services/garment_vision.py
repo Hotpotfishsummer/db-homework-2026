@@ -6,10 +6,14 @@ import re
 import time
 import uuid
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from PIL import Image, ImageOps
 
 from app.core.config import get_settings
+
+if TYPE_CHECKING:
+    from app.core.user_llm import UserLLMConfig
 
 # Anchor the storage path to the location of THIS source file, not the process
 # CWD. The Docker image runs with CWD=/app but the code lives in
@@ -124,11 +128,15 @@ class VisionService:
             return image.convert("RGBA" if "A" in image.getbands() else "RGB")
         return image
 
-    async def analyze_garment(self, image_bytes: bytes) -> dict:
+    async def analyze_garment(
+        self,
+        image_bytes: bytes,
+        user_llm: "UserLLMConfig | None" = None,
+    ) -> dict:
         """Analyze if image contains a garment using multimodal LLM."""
         started_at = time.perf_counter()
         logger.info("Vision garment analysis started: size_bytes=%s", len(image_bytes))
-        if not self._can_use_vision():
+        if not self._can_use_vision(user_llm=user_llm):
             logger.warning("Vision garment analysis skipped because vision config is unavailable")
             return {
                 "contains_garment": False,
@@ -138,15 +146,27 @@ class VisionService:
 
         try:
             from openai import AsyncOpenAI
-            client = AsyncOpenAI(
-                api_key=settings.llm_api_key,
-                base_url=settings.llm_api_base,
-            )
+            if user_llm is not None and user_llm.is_usable():
+                client = AsyncOpenAI(
+                    api_key=user_llm.api_key,
+                    base_url=user_llm.base_url,
+                )
+                model_name = user_llm.model
+                logger.debug(
+                    "Vision using user-supplied LLM: base_url=%s model=%s",
+                    user_llm.base_url, user_llm.model,
+                )
+            else:
+                client = AsyncOpenAI(
+                    api_key=settings.llm_api_key,
+                    base_url=settings.llm_api_base,
+                )
+                model_name = settings.llm_model
 
             base64_image = base64.b64encode(image_bytes).decode("utf-8")
 
             response = await client.chat.completions.create(
-                model=settings.llm_model,
+                model=model_name,
                 messages=[
                     {
                         "role": "user",
@@ -195,7 +215,12 @@ class VisionService:
                 "description": f"Analysis failed: {str(e)}",
             }
 
-    async def tag_garment(self, image_bytes: bytes, detection_description: str) -> dict:
+    async def tag_garment(
+        self,
+        image_bytes: bytes,
+        detection_description: str,
+        user_llm: "UserLLMConfig | None" = None,
+    ) -> dict:
         """Generate structured clothing tags from the image and detector description."""
         started_at = time.perf_counter()
         logger.info(
@@ -205,21 +230,29 @@ class VisionService:
         )
         fallback = self._fallback_garment_tags(detection_description)
 
-        if not self._can_use_vision():
+        if not self._can_use_vision(user_llm=user_llm):
             logger.warning("Vision garment tagging skipped because vision config is unavailable")
             return fallback
 
         try:
             from openai import AsyncOpenAI
 
-            client = AsyncOpenAI(
-                api_key=settings.llm_api_key,
-                base_url=settings.llm_api_base,
-            )
+            if user_llm is not None and user_llm.is_usable():
+                client = AsyncOpenAI(
+                    api_key=user_llm.api_key,
+                    base_url=user_llm.base_url,
+                )
+                model_name = user_llm.model
+            else:
+                client = AsyncOpenAI(
+                    api_key=settings.llm_api_key,
+                    base_url=settings.llm_api_base,
+                )
+                model_name = settings.llm_model
 
             base64_image = base64.b64encode(image_bytes).decode("utf-8")
             response = await client.chat.completions.create(
-                model=settings.llm_model,
+                model=model_name,
                 messages=[
                     {
                         "role": "user",
@@ -262,7 +295,9 @@ class VisionService:
             logger.exception("Vision garment tagging failed, returning fallback tags")
             return fallback
 
-    def _can_use_vision(self) -> bool:
+    def _can_use_vision(self, user_llm: "UserLLMConfig | None" = None) -> bool:
+        if user_llm is not None and user_llm.is_usable():
+            return True
         return bool(settings.llm_api_key and settings.llm_api_base and settings.llm_model)
 
     def _parse_json_result(self, raw_text: str) -> dict:

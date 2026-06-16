@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from app.core.config import get_settings
 from app.core.logging import setup_logging
-from app.api.v1 import auth, daily_tips, garments, outfit, user, recommendation
+from app.api.v1 import auth, daily_tips, garments, outfit, user, recommendation, user_llm
 from app.services.llm_health import check_llm_api_availability
 
 # Anchor the static-files directory to the location of THIS source file so
@@ -44,6 +44,7 @@ app.include_router(user.router, prefix="/api/v1")
 app.include_router(outfit.router, prefix="/api/v1")
 app.include_router(daily_tips.router, prefix="/api/v1")
 app.include_router(recommendation.router, prefix="/api/v1")
+app.include_router(user_llm.router, prefix="/api/v1")
 
 
 async def _check_llm_api_availability() -> None:

@@ -30,6 +30,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.user_llm import UserLLMConfig
 from app.services.weather import WeatherService
 from db.repositories.user_repo import UserRepository
 from db.repositories.wardrobe_repo import ClothesRepository
@@ -95,7 +96,10 @@ class BaseAgentService:
     # ------------------------------------------------------------------
     # Capability checks
     # ------------------------------------------------------------------
-    def _can_use_agent(self) -> bool:
+    def _can_use_agent(self, user_llm: UserLLMConfig | None = None) -> bool:
+        # User-supplied config is sufficient on its own
+        if user_llm is not None and user_llm.is_usable():
+            return bool(LANGCHAIN_AVAILABLE)
         has_generic = bool(
             _is_configured(settings.llm_api_key)
             and settings.llm_api_base
@@ -107,11 +111,32 @@ class BaseAgentService:
     # ------------------------------------------------------------------
     # LLM construction
     # ------------------------------------------------------------------
-    def _build_llm(self):
+    def _build_llm(self, user_llm: "UserLLMConfig | None" = None):
+        """Build a ChatOpenAI client.
+
+        If ``user_llm`` is provided and usable, the user-supplied
+        credentials are used; otherwise the server's .env-configured
+        credentials are used.
+
+        The caller is expected to wrap this call in
+        ``apply_user_llm(user_llm)`` when the user supplied a config,
+        but we still pass the explicit values here as a defense-in-depth
+        measure: if the context manager is forgotten, the agent will
+        still talk to the user's LLM (which is what the user expects).
+        """
         if not self._can_use_agent():
             raise RuntimeError("LangChain LLM is not available")
 
-        if settings.deepseek_api_key and _is_configured(settings.deepseek_api_key):
+        # Prefer user-supplied config when present and usable
+        if user_llm is not None and user_llm.is_usable():
+            api_key = user_llm.api_key
+            base_url = user_llm.base_url
+            model = user_llm.model
+            logger.debug(
+                "Using user-supplied LLM: base_url=%s model=%s",
+                base_url, model,
+            )
+        elif settings.deepseek_api_key and _is_configured(settings.deepseek_api_key):
             api_key = settings.deepseek_api_key
             base_url = settings.deepseek_base_url
             model = settings.llm_model or "deepseek-chat"
@@ -133,18 +158,28 @@ class BaseAgentService:
     # ------------------------------------------------------------------
     # Agent execution
     # ------------------------------------------------------------------
-    async def _run_agent(self, system_prompt: str, user_prompt: str, tools: list[Any]) -> dict[str, Any]:
+    async def _run_agent(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        tools: list[Any],
+        user_llm: UserLLMConfig | None = None,
+    ) -> dict[str, Any]:
         """Run the LangGraph ReAct agent and normalize the result.
 
         Returns the v0.x AgentExecutor contract:
         ``{"output": <final AI text>, "intermediate_steps": [(action, observation), ...]}``
+
+        ``user_llm`` is an optional user-supplied LLM config; when
+        provided, it overrides the server-default LLM credentials for
+        this run.
         """
         logger.info(
             "Starting agent execution: tool_count=%s prompt_chars=%s",
             len(tools),
             len(user_prompt),
         )
-        llm = self._build_llm()
+        llm = self._build_llm(user_llm=user_llm)
 
         # The system prompt may contain JSON field-format spec like
         # `{"name": string, ...}` which would otherwise be parsed as

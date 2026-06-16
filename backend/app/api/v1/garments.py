@@ -1,7 +1,8 @@
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import require_user
+from app.core.user_llm import apply_user_llm, parse_user_llm_headers
 from app.models.schemas import GarmentDetectionResponse, GarmentUploadResponse
 from app.services.garment_vision import VisionService
 from db import get_db, ClothesRepository, UserRepository
@@ -30,21 +31,30 @@ async def _resolve_user_id(user: dict, db: AsyncSession) -> int:
 @router.post("/upload")
 async def upload_garment(
     image: UploadFile = File(...),
+    http_request: Request = None,
     user: dict = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Upload a garment image, tag it, and persist it to the clothes table."""
+    """Upload a garment image, tag it, and persist it to the clothes table.
+
+    If the user supplied their own LLM (X-User-LLM-* headers), vision
+    analysis + tagging use that LLM instead of the server's .env default.
+    """
     if not image.content_type or not image.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image")
 
     content = await image.read()
-    detection = await vision.analyze_garment(content)
+    user_llm = parse_user_llm_headers(http_request) if http_request else None
+    with apply_user_llm(user_llm):
+        detection = await vision.analyze_garment(content, user_llm=user_llm)
 
-    if not detection["contains_garment"]:
-        return GarmentDetectionResponse(**detection)
+        if not detection["contains_garment"]:
+            return GarmentDetectionResponse(**detection)
 
-    processed = await vision.process_image(content, image.filename)
-    tags = await vision.tag_garment(content, detection_description=detection["description"])
+        processed = await vision.process_image(content, image.filename)
+        tags = await vision.tag_garment(
+            content, detection_description=detection["description"], user_llm=user_llm,
+        )
 
     resolved_user_id = await _resolve_user_id(user, db)
     repository = ClothesRepository(db)
@@ -135,6 +145,7 @@ async def delete_garment(
 @router.post("/detect")
 async def detect_garment(
     image: UploadFile = File(...),
+    http_request: Request = None,
     user: dict = Depends(require_user),
 ):
     """Analyze if uploaded image contains a garment."""
@@ -146,5 +157,7 @@ async def detect_garment(
         }
 
     content = await image.read()
-    result = await vision.analyze_garment(content)
+    user_llm = parse_user_llm_headers(http_request) if http_request else None
+    with apply_user_llm(user_llm):
+        result = await vision.analyze_garment(content, user_llm=user_llm)
     return result

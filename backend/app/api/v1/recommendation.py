@@ -10,10 +10,11 @@ from __future__ import annotations
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import require_user
+from app.core.user_llm import apply_user_llm, parse_user_llm_headers
 from app.models.schemas import (
     ItemRecommendEnvelope,
     ItemRecommendRequest,
@@ -37,17 +38,21 @@ router = APIRouter(prefix="/recommend", tags=["recommendation"])
 @router.post("/items", response_model=ItemRecommendEnvelope)
 async def recommend_items(
     request: ItemRecommendRequest,
+    http_request: Request,
     user: dict = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Recommend 5-8 new items the user might want to buy."""
+    user_llm = parse_user_llm_headers(http_request)
     agent = RecommendationAgentService(db)
-    result = await agent.recommend_items(
-        scene=request.scene,
-        user_id=user.get("user_id"),
-        location=user.get("location"),
-        gap_focus=request.gapFocus,
-    )
+    with apply_user_llm(user_llm):
+        result = await agent.recommend_items(
+            scene=request.scene,
+            user_id=user.get("user_id"),
+            location=user.get("location"),
+            gap_focus=request.gapFocus,
+            user_llm=user_llm,
+        )
     # The persistence step inside recommend_items already committed; refresh
     # each persisted item so we return its DB-assigned id.
     items = result.get("items", [])
@@ -167,16 +172,20 @@ async def update_recommended_item_status(
 @router.post("/items/with-outfit", response_model=ShoppingOutfitEnvelope)
 async def recommend_shopping_outfit(
     request: ShoppingOutfitRequest,
+    http_request: Request,
     user: dict = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Produce a 4-5 slot outfit mixing owned + recommended items."""
+    user_llm = parse_user_llm_headers(http_request)
     agent = RecommendationAgentService(db)
-    result = await agent.recommend_with_wardrobe(
-        scene=request.scene,
-        user_id=user.get("user_id"),
-        location=user.get("location"),
-    )
+    with apply_user_llm(user_llm):
+        result = await agent.recommend_with_wardrobe(
+            scene=request.scene,
+            user_id=user.get("user_id"),
+            location=user.get("location"),
+            user_llm=user_llm,
+        )
     return {"code": 200, "data": result, "msg": "success"}
 
 
@@ -185,13 +194,17 @@ async def recommend_shopping_outfit(
 # ------------------------------------------------------------------
 @router.post("/gap-analysis", response_model=WardrobeGapEnvelope)
 async def gap_analysis(
+    http_request: Request,
     user: dict = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Analyze category-level gaps in the user's wardrobe."""
+    user_llm = parse_user_llm_headers(http_request)
     agent = RecommendationAgentService(db)
-    result = await agent.analyze_wardrobe_gap(
-        user_id=user.get("user_id"),
-        location=user.get("location"),
-    )
+    with apply_user_llm(user_llm):
+        result = await agent.analyze_wardrobe_gap(
+            user_id=user.get("user_id"),
+            location=user.get("location"),
+            user_llm=user_llm,
+        )
     return {"code": 200, "data": result, "msg": "success"}
