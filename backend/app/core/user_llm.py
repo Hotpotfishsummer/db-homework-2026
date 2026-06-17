@@ -130,13 +130,13 @@ def is_http_url_safe(url: str) -> bool:
     # Loopback
     if host in ("localhost", "127.0.0.1", "::1"):
         return True
-    # Any IPv4 address (covers LANs and private networks)
+    # IPv4 address: allow only loopback/private/link-local over plain HTTP
     parts = host.split(".")
     if len(parts) == 4:
+        import ipaddress
         try:
-            octets = [int(p) for p in parts]
+            ip = ipaddress.ip_address(host)
         except ValueError:
             return False
-        if all(0 <= o <= 255 for o in octets):
-            return True
+        return bool(ip.is_loopback or ip.is_private or ip.is_link_local)
     return False
