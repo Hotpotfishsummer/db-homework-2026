@@ -3,10 +3,18 @@
     <div class="section-title">
       <span class="title-icon">✨</span>
       <span>{{ sceneName }} 推荐</span>
-      <button class="refresh-btn" @click="$emit('refresh')" :class="{ spinning: isLoading }">
-        🔄
-      </button>
     </div>
+
+    <!-- 显眼的主操作按钮: 用户唯一会触发后端 agent 的入口 -->
+    <button
+      class="primary-refresh"
+      :class="{ spinning: isLoading, idle: isIdle }"
+      :disabled="isLoading"
+      @click="$emit('refresh')"
+    >
+      <span class="primary-refresh-icon">{{ isLoading ? '⏳' : (isIdle ? '✨' : '🔄') }}</span>
+      <span class="primary-refresh-text">{{ buttonLabel }}</span>
+    </button>
 
     <div v-if="isLoading" class="ai-generating">
       <div class="generating-animation">
@@ -26,6 +34,7 @@
           @touchstart="onTouchStart"
           @touchmove="onTouchMove"
           @touchend="onTouchEnd(index, $event)"
+          @click="$emit('viewDetail', outfit)"
         >
           <div class="card-image">
             <img :src="outfit.image" :alt="outfit.name" />
@@ -41,9 +50,10 @@
               <span class="ai-icon">🤖</span>
               <span>{{ outfit.reason }}</span>
             </div>
+            <div class="detail-hint">点击查看完整详情 ›</div>
           </div>
-          <div class="card-actions">
-            <button class="action-detail" @click.stop="$emit('viewDetail', outfit)">📋</button>
+          <div class="card-actions" @click.stop>
+            <button class="action-detail" @click="$emit('viewDetail', outfit)">📋</button>
             <button class="action-dislike" @click="$emit('dislike', index)">👎</button>
             <button class="action-like" @click="$emit('like', outfit)">❤️</button>
           </div>
@@ -51,9 +61,16 @@
       </TransitionGroup>
 
       <div v-if="outfits.length === 0 && !isLoading" class="empty-state">
-        <span class="empty-icon">👗</span>
-        <p>暂无推荐</p>
-        <p class="empty-hint">尝试切换其他场景</p>
+        <template v-if="isIdle">
+          <span class="empty-icon">✨</span>
+          <p>点击上方按钮,让 AI 为你生成「{{ sceneName }}」场景下的专属搭配</p>
+          <p class="empty-hint">只有你主动点击后才会调用 AI,不会在切换 tab 时悄悄消耗额度</p>
+        </template>
+        <template v-else>
+          <span class="empty-icon">😔</span>
+          <p>暂无搭配方案</p>
+          <p class="empty-hint">点击上方「重新生成」再试一次</p>
+        </template>
       </div>
     </div>
 
@@ -64,6 +81,8 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
+
 const props = defineProps({
   sceneName: {
     type: String,
@@ -76,10 +95,26 @@ const props = defineProps({
   outfits: {
     type: Array,
     default: () => []
+  },
+  /**
+   * 父级记录"用户是否已经显式点过刷新"。
+   * false → 展示引导空态(首屏 / 切 mode 后的初始态),不展示"暂无数据"。
+   */
+  hasGenerated: {
+    type: Boolean,
+    default: false
   }
 })
 
 const emit = defineEmits(['refresh', 'like', 'dislike', 'viewDetail'])
+
+// 区分"首屏尚未生成"和"已生成但失败/已消费完"
+const isIdle = computed(() => !props.isLoading && !props.hasGenerated && (!props.outfits || props.outfits.length === 0))
+const buttonLabel = computed(() => {
+  if (props.isLoading) return 'AI 生成中...'
+  if (isIdle.value) return '让 AI 帮我搭配'
+  return '再来一套'
+})
 
 let touchStartX = 0
 let touchCurrentX = 0
@@ -145,6 +180,82 @@ const onTouchEnd = (index, e) => {
 
 .title-icon {
   font-size: 20px;
+}
+
+/* 显眼的主操作按钮: 用户唯一会触发后端 agent 的入口 */
+.primary-refresh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 16px 20px;
+  margin: 4px 0 20px;
+  background: linear-gradient(135deg, #5e35b1 0%, #7e57c2 100%);
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(94, 53, 177, 0.28);
+  transition: transform 0.1s, box-shadow 0.15s, background 0.2s;
+}
+
+.primary-refresh:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(94, 53, 177, 0.35);
+}
+
+.primary-refresh:active {
+  transform: scale(0.98);
+}
+
+.primary-refresh:disabled {
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+.primary-refresh.idle {
+  background: linear-gradient(135deg, #ff6f61 0%, #ff9061 100%);
+  box-shadow: 0 6px 16px rgba(255, 111, 97, 0.32);
+  animation: idle-pulse 2.2s ease-in-out infinite;
+}
+
+.primary-refresh.idle:hover {
+  box-shadow: 0 8px 20px rgba(255, 111, 97, 0.42);
+}
+
+@keyframes idle-pulse {
+  0%, 100% { box-shadow: 0 6px 16px rgba(255, 111, 97, 0.32); }
+  50% { box-shadow: 0 6px 22px rgba(255, 111, 97, 0.55); }
+}
+
+.primary-refresh-icon {
+  font-size: 18px;
+  display: inline-block;
+}
+
+.primary-refresh.spinning .primary-refresh-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 详情提示: 整张卡片可点击,提示用户 */
+.detail-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #5e35b1;
+  font-weight: 500;
+}
+
+.outfit-card {
+  cursor: pointer;
 }
 
 .refresh-btn {

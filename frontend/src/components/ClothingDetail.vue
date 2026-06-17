@@ -170,9 +170,16 @@ const toggleStatus = () => {
   emit('close')
 }
 
-const deleteCloth = () => {
+const deleteCloth = async () => {
+  const confirmed = window.confirm(`确定要删除「${props.cloth?.name || '这件衣物'}」吗？该操作不可撤销。`)
+  if (!confirmed) return
+
   trigger('error')
-  wardrobeStore.removeCloth(props.cloth.id)
+  const result = await wardrobeStore.deleteClothAsync(props.cloth.id)
+  if (!result?.ok) {
+    window.alert(result?.msg || '删除失败，请稍后重试')
+    return
+  }
   emit('close')
 }
 </script>

@@ -4,12 +4,13 @@ from db.models import (
     User, UserProfile, Clothes, WardrobeItem,
     OutfitRecommendation, RecommendationItem,
     OutfitFavorite, OutfitHistory, DailyTip,
+    ShoppingRecommendation,
 )
 from db.repositories import (
     UserRepository, UserProfileRepository,
     ClothesRepository, WardrobeRepository,
     RecommendationRepository, FavoriteRepository, HistoryRepository,
-    DailyTipRepository,
+    DailyTipRepository, ShoppingRecommendationRepository,
 )
 
 __all__ = [
@@ -17,8 +18,9 @@ __all__ = [
     "User", "UserProfile", "Clothes", "WardrobeItem",
     "OutfitRecommendation", "RecommendationItem",
     "OutfitFavorite", "OutfitHistory", "DailyTip",
+    "ShoppingRecommendation",
     "UserRepository", "UserProfileRepository",
     "ClothesRepository", "WardrobeRepository",
     "RecommendationRepository", "FavoriteRepository", "HistoryRepository",
-    "DailyTipRepository",
+    "DailyTipRepository", "ShoppingRecommendationRepository",
 ]

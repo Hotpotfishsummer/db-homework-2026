@@ -152,3 +152,29 @@ See `CONTRIBUTING.md` for full details. Key conventions:
 - Commit format: `<type>: <subject>` where type is `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 - Merge to `main` via **Squash and merge**
 - Sync feature branches with `git rebase main` before PR
+
+### User-Supplied LLM (BYOK)
+
+Users can configure their own OpenAI-compatible LLM in ProfileView (🔑 LLM Configuration). The key + base_url + model are stored in browser localStorage only (key: l-wardrobe.user_llm) and transmitted per-request via three headers:
+
+- X-User-LLM-Enabled: 1 (explicit opt-in)
+- X-User-LLM-Key: sk-...
+- X-User-LLM-Base: https://... (https:// or http://localhost/IPv4 only)
+- X-User-LLM-Model: gpt-4o-mini
+
+**Backend**: pp/core/user_llm.py parses the headers into UserLLMConfig, then pply_user_llm(config) context manager temporarily overrides the global settings.llm_api_key/base/model for the duration of the request, restoring them on exit. Log entries only record ase_url + model, never the key.
+
+**Coverage**: All 4 LLM entry points respect the user config:
+- POST /api/v1/outfit/recommend (StylingAgentService)
+- POST /api/v1/recommend/items + with-outfit + gap-analysis (RecommendationAgentService)
+- GET /api/v1/daily-tips/ (StylingAgentService.generate_daily_tip)
+- POST /api/v1/garments/upload + /detect (VisionService — supports multimodal when the user picks a vision-capable model)
+
+**Test endpoints** (no auth): POST /api/v1/user/llm/test-key (lists models on the upstream), POST /api/v1/user/llm/test-vision (uploads 1×1 PNG to confirm multimodal support), POST /api/v1/user/llm/models (model list for the dropdown).
+
+**Frontend**:
+- services/fetch_interceptor.js wraps window.fetch at startup; every LLM request automatically gets the 3 headers injected.
+- components/profile/UserLLMSettings.vue is the 3-step validation UI (test-key → test-vision → save).
+- components/HomeViewUserLLMHint.vue shows a one-time prompt card on HomeView when no config exists.
+
+### Database Layer

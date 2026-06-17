@@ -309,6 +309,180 @@ Authorization: Bearer <token>
 
 **备注：** 此接口目前前端未调用，属于预留。如果推荐接口已包含 reason 字段，此接口可不实现。
 
+## 四、AI 推荐模块 `/api/v1/recommend` 🆕
+
+> **AI 搭配 vs AI 推荐**: 搭配 (`/outfit`) 严格限于衣橱内组合;推荐 (`/recommend`) 允许推荐新购单品、嵌入搭配、缺口分析。
+
+### 4.1 单品推荐 (新购)
+
+```
+POST /api/v1/recommend/items
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+**请求体：**
+```json
+{
+  "scene": "commute",
+  "gapFocus": "outerwear"   // 可选, 想重点补的品类
+}
+```
+
+| 字段 | 必填 | 类型 | 说明 |
+|------|------|------|------|
+| `scene` | 是 | string | commute / date / casual / sports / party |
+| `gapFocus` | 否 | string | top / bottom / outerwear / shoes / accessory, 重点补的品类 |
+
+**成功响应：**
+```json
+{
+  "code": 200,
+  "msg": "success",
+  "data": {
+    "items": [
+      {
+        "id": "uuid-1",
+        "name": "米白色羊毛混纺大衣",
+        "category": "outerwear",
+        "color": "米白",
+        "style_tags": ["极简", "通勤", "百搭"],
+        "price_range": "500-800元",
+        "purchase_url": null,
+        "reason": "你已有较多深色内搭，缺一件浅色外搭来提亮通勤造型",
+        "priority": 92,
+        "status": "pending",
+        "created_at": "2026-06-16T10:00:00Z"
+      }
+    ],
+    "scene": "通勤",
+    "weatherSummary": "阴，24°C",
+    "toolSummary": ["get_weather: ...", "analyze_wardrobe_gap: ..."],
+    "generatedBy": "langchain-agent"
+  }
+}
+```
+
+**前端对应组件**：`ShoppingItemCard.vue` 渲染每条 item, 操作按钮触发 §4.4 PATCH。
+
+### 4.2 推荐 + 嵌入搭配
+
+```
+POST /api/v1/recommend/items/with-outfit
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+**请求体：**
+```json
+{ "scene": "date" }
+```
+
+**成功响应：**
+```json
+{
+  "code": 200,
+  "msg": "success",
+  "data": {
+    "outfit": {
+      "id": "uuid",
+      "name": "约会清新搭配",
+      "description": "清爽简约,适合晚间约会",
+      "matchRate": 88,
+      "scene": "约会",
+      "slots": [
+        {
+          "category": "top",
+          "name": "白T恤",
+          "need_buy": false,
+          "wardrobe_id": 1,
+          "image": "/static/garments/xxx.webp"
+        },
+        {
+          "category": "shoes",
+          "name": "小白鞋",
+          "need_buy": true,
+          "reason": "衣橱没有白色板鞋,建议入手基础款"
+        }
+      ]
+    },
+    "weatherSummary": "晴，22°C",
+    "generatedBy": "langchain-agent"
+  }
+}
+```
+
+**前端对应**：`need_buy=true` 的 slot 虚线边框 + 🛒 角标; `need_buy=false` 用衣橱图片。
+
+### 4.3 衣橱缺口报告
+
+```
+POST /api/v1/recommend/gap-analysis
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+请求体可空 `{}`。
+
+**成功响应：**
+```json
+{
+  "code": 200,
+  "msg": "success",
+  "data": {
+    "report": {
+      "summary": "衣橱整体以休闲款为主，缺少正式通勤外套和深色鞋履",
+      "gaps": [
+        { "category": "outerwear", "current": 1, "suggested": 3, "advice": "建议补 1-2 件可跨场景的中性色外套" },
+        { "category": "shoes", "current": 2, "suggested": 4, "advice": "缺一双深色乐福鞋通勤用" }
+      ],
+      "generatedBy": "langchain-agent"
+    }
+  }
+}
+```
+
+**前端对应组件**：`WardrobeGapCard.vue`。
+
+### 4.4 更新推荐状态
+
+```
+PATCH /api/v1/recommend/items/:id
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+**请求体：**
+```json
+{ "status": "bought" }
+```
+
+`status` 枚举：
+- `pending` — AI 刚推荐, 未处理
+- `bought` — 用户标记已购买
+- `dismissed` — 用户标记不需要
+- `wishlist` — 加入心愿单 (后续扩展)
+
+**成功响应：**
+```json
+{ "code": 200, "msg": "success", "data": { "id": "uuid", "status": "bought" } }
+```
+
+### 4.5 历史推荐列表
+
+```
+GET /api/v1/recommend/items?status=pending&limit=20&offset=0
+Authorization: Bearer <token>
+```
+
+| Query 参数 | 必填 | 默认 | 说明 |
+|-----------|------|------|------|
+| `status` | 否 | 全部 | 过滤 status |
+| `limit` | 否 | 20 | 每页数量 |
+| `offset` | 否 | 0 | 偏移 |
+
+**成功响应**：结构同 §4.1, `items` 数组为历史数据, 按 `created_at` 降序。
+
 ---
 
 ## 四、用户资料模块 `/api/v1/user`

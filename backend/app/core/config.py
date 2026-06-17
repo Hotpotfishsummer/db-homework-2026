@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     app_name: str = "L-Wardrobe"
     debug: bool = False
     secret_key: str = "change-me"
+    log_level: str = "INFO"
 
     weather_api_key: str = ""
     hefeng_api_key: str = ""

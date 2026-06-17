@@ -229,6 +229,108 @@ Authorization: Bearer {token}
 
 **Fallback：** 若 API key 未填、Agent 返回无效 JSON 或工具失败，自动降级为模板数据，前端无感知。
 
+### 1.1 AI 单品推荐（新购）🆕
+
+> 与 AI 搭配严格区分：**搭配** 解决"今天穿什么"（限于衣橱），**推荐** 解决"我还缺什么 / 要买什么"（可以推荐新单品）。
+
+**POST** `/api/v1/recommend/items`
+
+**Headers：**
+```
+Content-Type: application/json
+Authorization: Bearer {token}
+```
+
+**Request Body：**
+```json
+{
+  "scene": "commute",
+  "weather": { "temp": 24, "text": "阴" },
+  "gapFocus": "outerwear"   // 可选, 想重点补的品类
+}
+```
+
+**Response：**
+```json
+{
+  "code": 200,
+  "data": {
+    "items": [
+      {
+        "id": "uuid-1",
+        "name": "米白色羊毛混纺大衣",
+        "category": "outerwear",
+        "color": "米白",
+        "style_tags": ["极简", "通勤", "百搭"],
+        "price_range": "500-800元",
+        "purchase_url": null,
+        "reason": "你已有较多深色内搭，缺一件浅色外搭来提亮通勤造型",
+        "priority": 92
+      }
+    ],
+    "scene": "通勤",
+    "weatherSummary": "阴，24°C",
+    "generatedBy": "langchain-agent"
+  },
+  "msg": "success"
+}
+```
+
+**持久化**：所有推荐自动写入 `shopping_recommendations` 表（status=pending），可通过 PATCH `/api/v1/recommend/items/{id}` 标记为 bought / dismissed。
+
+### 1.2 AI 推荐 + 嵌入搭配 🆕
+
+**POST** `/api/v1/recommend/items/with-outfit`
+
+返回完整搭配方案，每个 slot 标记 `need_buy: true/false`，区分衣橱已有 vs 需新购。
+
+**Request Body：**
+```json
+{ "scene": "date" }
+```
+
+**Response（节选）：**
+```json
+{
+  "code": 200,
+  "data": {
+    "outfit": {
+      "name": "约会清新搭配",
+      "matchRate": 88,
+      "slots": [
+        { "category": "top", "name": "白T恤", "need_buy": false, "wardrobe_id": 1, "image": "/static/garments/xxx.webp" },
+        { "category": "bottom", "name": "卡其裤", "need_buy": false, "wardrobe_id": 3, "image": "/static/garments/yyy.webp" },
+        { "category": "shoes", "name": "小白鞋", "need_buy": true, "purchase_url": null, "reason": "衣橱没有白色板鞋，建议入手基础款" }
+      ]
+    },
+    "generatedBy": "langchain-agent"
+  },
+  "msg": "success"
+}
+```
+
+### 1.3 衣橱缺口报告 🆕
+
+**POST** `/api/v1/recommend/gap-analysis`
+
+**Response：**
+```json
+{
+  "code": 200,
+  "data": {
+    "report": {
+      "summary": "衣橱整体以休闲款为主，缺少正式通勤外套和深色鞋履",
+      "gaps": [
+        { "category": "outerwear", "current": 1, "suggested": 3, "advice": "建议补 1-2 件可跨场景的中性色外套" },
+        { "category": "shoes", "current": 2, "suggested": 4, "advice": "缺一双深色乐福鞋通勤用" }
+      ],
+      "generatedBy": "langchain-agent"
+    }
+  },
+  "msg": "success"
+}
+```
+
 ---
 
 ### 2. 衣服图片上传
