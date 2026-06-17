@@ -23,19 +23,27 @@ export function setupFetchInterceptor() {
 
   window.fetch = async (input, init = {}) => {
     try {
-      // Read config from localStorage directly to avoid pulling in the
-      // Pinia store here (which would require Pinia to be active).
+      const url = typeof input === 'string' ? input : input?.url
       const raw = typeof localStorage !== 'undefined'
         ? localStorage.getItem('l-wardrobe.user_llm')
         : null
-      if (raw) {
-        const config = JSON.parse(raw)
-        const headers = buildUserLlmHeaders(config)
-        if (headers && Object.keys(headers).length > 0) {
-          init = { ...init, headers: { ...(init.headers || {}), ...headers } }
+
+      if (url && raw) {
+        const target = new URL(url, window.location.origin)
+        const apiBase = new URL((import.meta.env.VITE_API_BASE_URL || '/api/v1'), window.location.origin)
+        const isApiRequest = target.origin === apiBase.origin && target.pathname.startsWith(apiBase.pathname)
+
+        if (isApiRequest) {
+          const config = JSON.parse(raw)
+          const extra = buildUserLlmHeaders(config)
+          if (extra && Object.keys(extra).length > 0) {
+            const merged = new Headers(init.headers || (input instanceof Request ? input.headers : undefined))
+            for (const [k, v] of Object.entries(extra)) merged.set(k, v)
+            init = { ...init, headers: merged }
+          }
         }
       }
-    } catch (e) {
+    } catch {
       // Never break a request because the interceptor failed
     }
     return _originalFetch(input, init)
