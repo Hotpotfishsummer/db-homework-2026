@@ -232,15 +232,9 @@ async function onTestVision() {
 
 async function onRefreshModels() {
   if (!apiKey.value || !baseUrl.value) return
-  // Save a temporary "discover" config so listUserModels has the creds
-  // (the service reads from the local config, not the form values).
-  store.saveConfig({
-    api_key: apiKey.value,
-    base_url: baseUrl.value,
-    model: model.value || 'placeholder',
-    enabled: enabled.value,
-  })
-  await store.refreshAvailableModels()
+  // Reuse the existing connectivity test to fetch a model sample without
+  // persisting credentials to localStorage.
+  await store.runTestKey({ api_key: apiKey.value, base_url: baseUrl.value })
 }
 
 function onSave() {
