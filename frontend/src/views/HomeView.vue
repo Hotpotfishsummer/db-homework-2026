@@ -292,9 +292,9 @@ const viewRecOutfitDetail = (outfit) => {
   router.push(`/outfit/${id}`)
 }
 
-// mode 切换时: 不再自动触发后端,只清空旧结果,等待用户点刷新。
 watch(() => recStore.mode, () => {
   recStore.reset()
+  recHasGenerated.value = false
 })
 
 // 切回"AI 推荐"顶层 tab 时不触发,但如果是首次进入且数据为空,也不主动拉取,等用户点刷新。
