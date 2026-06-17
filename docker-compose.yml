@@ -50,7 +50,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "python -c \"import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/health').status)\""
+          "micromamba run -n l-wardrobe python -c \"import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/health').status)\""
         ]
       interval: 10s
       timeout: 5s

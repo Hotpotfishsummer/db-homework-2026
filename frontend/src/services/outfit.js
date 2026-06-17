@@ -9,7 +9,7 @@ import { useAuthStore } from '../stores/auth'
  * @returns {Promise<{ outfits: Array }>} 统一为 outfits 数组，供 store/OutfitCard 消费
  */
 export async function generateOutfit(params) {
-  const { scene, wardrobeIds } = params
+  const { scene, wardrobeIds, bodyProfile } = params
   const authStore = useAuthStore()
   const token = authStore.token || localStorage.getItem('token')
 
@@ -21,7 +21,8 @@ export async function generateOutfit(params) {
     },
     body: JSON.stringify({
       scene,
-      wardrobeIds: wardrobeIds || []
+      wardrobeIds: wardrobeIds || [],
+      bodyProfile: bodyProfile || null
     })
   })
 
@@ -40,7 +41,7 @@ export async function generateOutfit(params) {
  * - 衣橱为空/单品不足时 selectedItems=[] 也会得到一张空卡，UI 自行处理
  */
 function normalizeRecommendation(data, params) {
-  const { scene, weather } = params
+  const { scene } = params
   const items = Array.isArray(data?.selectedItems) ? data.selectedItems : []
 
   const pickByCategory = (category) =>
@@ -63,22 +64,22 @@ function normalizeRecommendation(data, params) {
         }
       : null
 
-  const weatherSummary = data?.weatherSummary || ''
-  const weatherNote = weather
-    ? `考虑今日${weather.temp ?? ''}°C天气，${weather.desc ?? weatherSummary ?? ''}`
-    : weatherSummary || '基于您的风格偏好推荐'
+  const weatherNote = data?.weatherSummary || '已根据实时天气、衣橱和数字人体卡片生成'
+  const outfitId = data?.id || `AI-${Date.now().toString(36).toUpperCase()}`
 
   return {
-    outfitId: data?.id || `AI-${Date.now().toString(36).toUpperCase()}`,
+    outfitId,
+    id: outfitId,
     scene: data?.scene || scene || '休闲',
     matchRate: typeof data?.matchRate === 'number' ? data.matchRate : 0,
     top: safe(top) || safe(fallbackItem),
     bottom: safe(bottom),
     shoes: safe(shoes),
     accessory: safe(accessory),
-    reason: data?.reason || data?.description || '已根据您的衣橱生成搭配建议',
+    reason: data?.reason || data?.description || '已根据你的衣橱、实时天气和数字人体卡片生成搭配建议',
     weatherNote,
     name: data?.name || '',
+    image: safe(top)?.image || safe(fallbackItem)?.image || '',
     description: data?.description || '',
     generatedBy: data?.generatedBy || 'langchain-agent'
   }

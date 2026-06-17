@@ -17,6 +17,12 @@ async def check_llm_api_availability() -> dict:
         "message": "LLM API check failed",
     }
 
+    if settings.user_llm_only:
+        result["available"] = True
+        result["message"] = "USER_LLM_ONLY is enabled; server-side LLM is intentionally disabled"
+        logger.info("LLM API availability probe skipped: %s", result["message"])
+        return result
+
     if not settings.llm_api_key or not settings.llm_api_base:
         result["message"] = "LLM API is not configured"
         logger.warning("LLM API availability probe skipped: %s", result["message"])

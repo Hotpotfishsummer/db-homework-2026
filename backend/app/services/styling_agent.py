@@ -80,11 +80,13 @@ class StylingAgentService(BaseAgentService):
         user_id: str | int | None = None,
         location: str | None = None,
         user_llm: "UserLLMConfig | None" = None,
+        body_profile: dict | None = None,
     ) -> dict:
         import time
         started_at = time.perf_counter()
         resolved_user_id = int(user_id) if user_id is not None else 0
         resolved_location = location or "深圳"
+        self.request_body_profile = body_profile if isinstance(body_profile, dict) else None
         logger.info(
             "Outfit recommendation started: scene=%s wardrobe_count=%s user_id=%s location=%s",
             scene,
@@ -285,6 +287,7 @@ class StylingAgentService(BaseAgentService):
             "工作流程：1) 使用 get_user_profile 获取用户位置；2) 使用 get_weather 获取天气；3) 使用 search_wardrobe 或 get_wardrobe_items_by_ids 查询相关单品；"
             "4) 使用 get_history_recommendations 查看历史推荐避免重复；5) 分析并推荐一套穿搭，输出 JSON。"
             "规则：- 必须从用户衣橱中选择真实存在的单品（使用 search_wardrobe 或 get_wardrobe_items_by_ids 验证）"
+            "- 如果 get_user_profile 返回 digital_body_profile，必须结合身高、体重、BMI、肤色、体型、风格标签、偏好色/避雷色和版型偏好调整推荐理由"
             "- matchRate 必须是 0-100 的整数"
             "- selectedItems 必须是从衣橱中选出的真实 item_id"
             "- 如果衣橱为空或不足，如实说明并在 reason 中解释"
