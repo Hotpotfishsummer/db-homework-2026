@@ -124,7 +124,7 @@ class BaseAgentService:
         measure: if the context manager is forgotten, the agent will
         still talk to the user's LLM (which is what the user expects).
         """
-        if not self._can_use_agent():
+        if not self._can_use_agent(user_llm=user_llm):
             raise RuntimeError("LangChain LLM is not available")
 
         # Prefer user-supplied config when present and usable
