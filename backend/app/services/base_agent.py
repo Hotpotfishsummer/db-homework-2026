@@ -92,6 +92,7 @@ class BaseAgentService:
         self.weather_service = WeatherService()
         self.clothes_repo = ClothesRepository(session)
         self.user_repo = UserRepository(session)
+        self.request_body_profile: dict | None = None
 
     # ------------------------------------------------------------------
     # Capability checks
@@ -100,6 +101,8 @@ class BaseAgentService:
         # User-supplied config is sufficient on its own
         if user_llm is not None and user_llm.is_usable():
             return bool(LANGCHAIN_AVAILABLE)
+        if settings.user_llm_only:
+            return False
         has_generic = bool(
             _is_configured(settings.llm_api_key)
             and settings.llm_api_base
@@ -136,10 +139,12 @@ class BaseAgentService:
                 "Using user-supplied LLM: base_url=%s model=%s",
                 base_url, model,
             )
+        elif settings.user_llm_only:
+            raise RuntimeError("User-supplied LLM is required")
         elif settings.deepseek_api_key and _is_configured(settings.deepseek_api_key):
             api_key = settings.deepseek_api_key
             base_url = settings.deepseek_base_url
-            model = settings.llm_model or "deepseek-chat"
+            model = settings.deepseek_model or "deepseek-chat"
             logger.debug("Using DeepSeek LLM: base_url=%s model=%s", base_url, model)
         else:
             api_key = settings.llm_api_key
@@ -310,17 +315,34 @@ class BaseAgentService:
     def _make_user_profile_tool(self, user_id: int):
         @tool
         async def get_user_profile() -> str:
-            """Get user profile (display name, location, style preference)."""
+            """Get user profile, including digital body profile when available."""
             import json
             user = await self.user_repo.get_by_id(user_id)
             if not user:
                 return json.dumps({"error": "User not found"}, ensure_ascii=False)
+            db_profile = user.profile
+            preferences = dict(getattr(db_profile, "preferences", {}) or {}) if db_profile else {}
+            request_profile = self.request_body_profile or {}
             profile = {
                 "user_id": user.user_id,
                 "username": user.username,
                 "display_name": user.display_name,
                 "style_preference": user.style_preference,
                 "location": user.location,
+                "digital_body_profile": {
+                    "source": "request" if request_profile else "database",
+                    "height_cm": request_profile.get("height") or preferences.get("height"),
+                    "weight_kg": request_profile.get("weight") or preferences.get("weight"),
+                    "bmi": request_profile.get("bmi") or preferences.get("bmi"),
+                    "skin_tone": request_profile.get("skinTone") or getattr(db_profile, "skin_tone", None),
+                    "body_shape": request_profile.get("bodyShape") or getattr(db_profile, "body_shape", None),
+                    "face_feature": request_profile.get("faceFeature") or preferences.get("face_feature"),
+                    "style_axes": request_profile.get("styleAxes") or preferences.get("style_axes", {}),
+                    "style_tags": request_profile.get("styleTags") or preferences.get("style_tags", []),
+                    "favorite_colors": request_profile.get("favoriteColors") or preferences.get("favorite_colors", []),
+                    "avoid_colors": request_profile.get("avoidColors") or preferences.get("avoid_colors", []),
+                    "fit_preference": request_profile.get("fitPreference") or preferences.get("fit_preference"),
+                },
             }
             return json.dumps(profile, ensure_ascii=False)
 

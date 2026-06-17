@@ -26,6 +26,24 @@ settings = get_settings()
 logger = logging.getLogger(__name__)
 
 
+def _vision_api_key() -> str:
+    if settings.user_llm_only:
+        return ""
+    return settings.vision_api_key or settings.llm_api_key
+
+
+def _vision_api_base() -> str:
+    if settings.user_llm_only:
+        return ""
+    return settings.vision_api_base or settings.llm_api_base
+
+
+def _vision_model() -> str:
+    if settings.user_llm_only:
+        return ""
+    return settings.vision_model or settings.llm_model
+
+
 class VisionService:
     """Handles garment image ingestion: background removal and persistence."""
 
@@ -158,10 +176,14 @@ class VisionService:
                 )
             else:
                 client = AsyncOpenAI(
-                    api_key=settings.llm_api_key,
-                    base_url=settings.llm_api_base,
+                    api_key=_vision_api_key(),
+                    base_url=_vision_api_base(),
                 )
-                model_name = settings.llm_model
+                model_name = _vision_model()
+                logger.debug(
+                    "Vision using server vision LLM: base_url=%s model=%s",
+                    _vision_api_base(), model_name,
+                )
 
             base64_image = base64.b64encode(image_bytes).decode("utf-8")
 
@@ -245,10 +267,14 @@ class VisionService:
                 model_name = user_llm.model
             else:
                 client = AsyncOpenAI(
-                    api_key=settings.llm_api_key,
-                    base_url=settings.llm_api_base,
+                    api_key=_vision_api_key(),
+                    base_url=_vision_api_base(),
                 )
-                model_name = settings.llm_model
+                model_name = _vision_model()
+                logger.debug(
+                    "Vision tagging using server vision LLM: base_url=%s model=%s",
+                    _vision_api_base(), model_name,
+                )
 
             base64_image = base64.b64encode(image_bytes).decode("utf-8")
             response = await client.chat.completions.create(
@@ -298,7 +324,7 @@ class VisionService:
     def _can_use_vision(self, user_llm: "UserLLMConfig | None" = None) -> bool:
         if user_llm is not None and user_llm.is_usable():
             return True
-        return bool(settings.llm_api_key and settings.llm_api_base and settings.llm_model)
+        return bool(_vision_api_key() and _vision_api_base() and _vision_model())
 
     def _parse_json_result(self, raw_text: str) -> dict:
         content = raw_text.strip()

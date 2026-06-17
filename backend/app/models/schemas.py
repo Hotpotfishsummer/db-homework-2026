@@ -226,6 +226,7 @@ class OutfitRecommendRequest(BaseModel):
     """Schema for outfit recommendation request."""
     scene: Literal["commute", "date", "casual", "sports", "party"]
     wardrobeIds: list[int]
+    bodyProfile: dict | None = None
 
 
 class DailyStylingAdvice(BaseModel):

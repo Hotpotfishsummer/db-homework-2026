@@ -365,6 +365,12 @@ class RecommendationAgentService(BaseAgentService):
                 "priority": self._coerce_priority(raw.get("priority")),
             }
             sanitized.append(item)
+        if not sanitized:
+            logger.warning(
+                "Items recommendation produced no parseable items; using deterministic gap fallback. raw_output=%s",
+                str(result.get("output", ""))[:500],
+            )
+            sanitized = self._fallback_item_list(scene=scene)
         return {
             "items": sanitized,
             "scene": scene,
@@ -479,7 +485,20 @@ class RecommendationAgentService(BaseAgentService):
             data = json.loads(content)
             return data if isinstance(data, dict) else {}
         except Exception:
-            return {}
+            pass
+
+        # DeepSeek sometimes wraps JSON in explanatory text despite the
+        # prompt. Extract the outermost object so a useful response does not
+        # get normalized to an empty UI state.
+        start = content.find("{")
+        end = content.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            try:
+                data = json.loads(content[start : end + 1])
+                return data if isinstance(data, dict) else {}
+            except Exception:
+                return {}
+        return {}
 
     def _weather_summary(self, weather: dict) -> str:
         text = weather.get("text", "晴")
@@ -507,14 +526,48 @@ class RecommendationAgentService(BaseAgentService):
     # ------------------------------------------------------------------
     def _fallback_items(self, scene: str, gap_focus: str | None) -> dict:
         return {
-            "items": [],
+            "items": self._fallback_item_list(scene=scene, gap_focus=gap_focus),
             "scene": scene,
             "weatherSummary": self._weather_summary({}),
-            "toolSummary": ["agent unavailable: please configure LLM_API_KEY"],
+            "toolSummary": ["agent unavailable or invalid JSON; deterministic shopping fallback"],
             "generatedBy": "fallback",
             "raw_output": "",
             "user_id": 0,
         }
+
+    def _fallback_item_list(self, scene: str, gap_focus: str | None = None) -> list[dict]:
+        scene_names = {
+            "commute": "通勤",
+            "date": "约会",
+            "casual": "休闲",
+            "sports": "运动",
+            "party": "派对",
+        }
+        scene_name = scene_names.get(scene, "日常")
+        base = [
+            ("outerwear", f"{scene_name}轻薄外套", "灰色", ["百搭", "层次"], "200-500元"),
+            ("shoes", f"{scene_name}舒适鞋履", "黑色", ["舒适", "耐穿"], "300-800元"),
+            ("bag", f"{scene_name}结构感包袋", "深棕色", ["实用", "提升质感"], "200-600元"),
+            ("accessory", f"{scene_name}简约配饰", "银色", ["点缀", "精致"], "50-200元"),
+            ("bottom", f"{scene_name}百搭下装", "深蓝色", ["修饰比例", "易搭"], "150-400元"),
+        ]
+        if gap_focus:
+            base.insert(0, (gap_focus, f"{scene_name}{gap_focus}补齐单品", "基础色", ["补齐缺口"], "100-500元"))
+        items = []
+        for idx, (category, name, color, tags, price) in enumerate(base[:6]):
+            items.append(
+                {
+                    "name": name,
+                    "category": self._coerce_category(category),
+                    "color": color,
+                    "style_tags": tags,
+                    "price_range": price,
+                    "purchase_url": None,
+                    "reason": f"用于补齐衣橱中的 {category} 类覆盖，并适配{scene_name}场景。",
+                    "priority": max(60, 92 - idx * 6),
+                }
+            )
+        return items
 
     def _fallback_shopping_outfit(self, scene: str) -> dict:
         return {

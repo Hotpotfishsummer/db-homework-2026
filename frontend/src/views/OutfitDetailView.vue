@@ -11,7 +11,8 @@
     </div>
 
     <div class="outfit-hero">
-      <img :src="outfit.image" :alt="outfit.name" />
+      <img v-if="outfit.image" :src="outfit.image" :alt="outfit.name" />
+      <div v-else class="hero-placeholder">👗</div>
       <div class="hero-overlay">
         <span class="scene-tag">{{ outfit.scene }}</span>
         <span class="match-tag">💫 {{ outfit.matchRate }}% 搭配度</span>
@@ -106,15 +107,10 @@ const outfit = ref({
   scene: '通勤',
   matchRate: 96,
   reason: '这套穿搭采用了经典的蓝白配色，上衣的剪裁利落有型，裤装的版型修饰腿型，整体风格干练专业，非常适合职场穿着。',
-  image: 'https://picsum.photos/400/600?random=20'
+  image: ''
 })
 
-const outfitItems = ref([
-  { id: 1, name: '白色衬衫', category: '上装', image: 'https://picsum.photos/100?random=101' },
-  { id: 2, name: '深蓝色西装裤', category: '下装', image: 'https://picsum.photos/100?random=102' },
-  { id: 3, name: '黑色皮鞋', category: '鞋靴', image: 'https://picsum.photos/100?random=103' },
-  { id: 4, name: '皮带', category: '配饰', image: 'https://picsum.photos/100?random=104' }
-])
+const outfitItems = ref([])
 
 const suggestions = ref([
   { icon: '👠', title: '配饰升级', desc: '可以搭配一条简约的银色项链，增添精致感' },
@@ -150,7 +146,7 @@ const loadOutfit = (id) => {
       scene: o.scene,
       matchRate: o.matchRate,
       reason: o.reason,
-      image: o.top?.image || 'https://picsum.photos/400/600?random=20'
+      image: o.image || o.top?.image || pickFirstOwnedImage([o.top, o.bottom, o.shoes, o.accessory])
     }
     outfitItems.value = [o.top, o.bottom, o.shoes, o.accessory].filter(Boolean).map(item => ({
       ...item,
@@ -194,7 +190,12 @@ const pickFirstImage = (o) => {
     const slot = o.slots.find(s => !s.need_buy && s.image) || o.slots.find(s => s.image)
     if (slot?.image) return slot.image
   }
-  return 'https://picsum.photos/400/600?random=20'
+  return ''
+}
+
+const pickFirstOwnedImage = (items) => {
+  const item = (items || []).find(i => i?.image)
+  return item?.image || ''
 }
 
 const getCategoryLabel = (cat) => {
@@ -299,6 +300,17 @@ const viewInWardrobe = (item) => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.hero-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-black);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 72px;
 }
 
 .hero-overlay {

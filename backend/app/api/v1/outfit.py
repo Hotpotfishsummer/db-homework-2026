@@ -36,6 +36,7 @@ async def recommend_outfit(
             user_id=user.get("user_id"),
             location=user.get("location"),
             user_llm=user_llm,
+            body_profile=request.bodyProfile,
         )
 
     scene_map = {

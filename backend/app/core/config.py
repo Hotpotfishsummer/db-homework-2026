@@ -15,12 +15,17 @@ class Settings(BaseSettings):
     hefeng_api_host: str = ""
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com/v1"
+    deepseek_model: str = "deepseek-chat"
     llm_api_key: str = ""
     llm_api_base: str = "https://api.openai.com/v1"
     llm_model: str = "gpt-4o-mini"
     llm_temperature: float = 0.2
     llm_max_tokens: int = 800
     agent_max_iterations: int = 3
+    vision_api_key: str = ""
+    vision_api_base: str = ""
+    vision_model: str = ""
+    user_llm_only: bool = False
     database_url: str = "postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/l_wardrobe"
 
     class Config:

@@ -11,7 +11,7 @@
       <div class="intro-banner">
         <div class="banner-icon">✨</div>
         <h2 class="banner-title">AI 智能搭配</h2>
-        <p class="banner-sub">选择场景与天气，让 AI 为你生成专属穿搭方案</p>
+        <p class="banner-sub">选择场景，AI 会自动读取实时天气与衣橱生成专属穿搭方案</p>
       </div>
       <MatchFilter @generate="handleGenerate" />
     </div>
