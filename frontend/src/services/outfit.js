@@ -48,7 +48,7 @@ function normalizeRecommendation(data, params) {
 
   const top = pickByCategory('top')
   const bottom = pickByCategory('bottom')
-  const shoes = pickByCategory('shoes') || pickByCategory('outerwear')
+  const shoes = pickByCategory('shoes')
   const accessory =
     pickByCategory('accessory') || pickByCategory('bag') || null
 
