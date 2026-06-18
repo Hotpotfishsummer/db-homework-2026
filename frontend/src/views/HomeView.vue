@@ -525,6 +525,9 @@ watch(() => recStore.mode, () => {
   .daily-tip-fab {
     right: 28px;
     bottom: 28px;
+  }
+}
+
 /* Quick action buttons in header */
 .quick-action {
   display: flex;
