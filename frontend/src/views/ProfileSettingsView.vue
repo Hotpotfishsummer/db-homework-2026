@@ -147,13 +147,13 @@ const genderOptions = [
   { value: 'other', label: '其他' }
 ]
 
-onMounted(() => {
+onMounted(async () => {
   authStore.checkAuth()
   if (!authStore.isAuthenticated) {
     router.push('/login')
     return
   }
-  userStore.loadProfile()
+  await userStore.loadProfileFromBackend()
   bioInput.value = userStore.profile.bio || ''
   birthdayInput.value = userStore.profile.birthday || ''
   localGender.value = userStore.profile.gender
@@ -207,9 +207,9 @@ const selectGender = (val) => { trigger('light'); localGender.value = localGende
 const toggleTheme = () => { trigger('light'); themeStore.toggle() }
 const handleLogout = () => { trigger('medium'); authStore.logout(); router.push('/login') }
 
-const confirmSave = () => {
+const confirmSave = async () => {
   trigger('medium')
-  userStore.updateProfile({
+  await userStore.updateProfile({
     bio: bioInput.value,
     gender: localGender.value,
     birthday: birthdayInput.value

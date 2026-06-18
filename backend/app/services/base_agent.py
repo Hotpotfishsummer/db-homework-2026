@@ -323,6 +323,17 @@ class BaseAgentService:
             db_profile = user.profile
             preferences = dict(getattr(db_profile, "preferences", {}) or {}) if db_profile else {}
             request_profile = self.request_body_profile or {}
+            def pick_profile(*keys, default=None):
+                for key in keys:
+                    value = request_profile.get(key)
+                    if value not in (None, "", [], {}):
+                        return value
+                for key in keys:
+                    value = preferences.get(key)
+                    if value not in (None, "", [], {}):
+                        return value
+                return default
+
             profile = {
                 "user_id": user.user_id,
                 "username": user.username,
@@ -331,17 +342,17 @@ class BaseAgentService:
                 "location": user.location,
                 "digital_body_profile": {
                     "source": "request" if request_profile else "database",
-                    "height_cm": request_profile.get("height") or preferences.get("height"),
-                    "weight_kg": request_profile.get("weight") or preferences.get("weight"),
-                    "bmi": request_profile.get("bmi") or preferences.get("bmi"),
-                    "skin_tone": request_profile.get("skinTone") or getattr(db_profile, "skin_tone", None),
-                    "body_shape": request_profile.get("bodyShape") or getattr(db_profile, "body_shape", None),
-                    "face_feature": request_profile.get("faceFeature") or preferences.get("face_feature"),
-                    "style_axes": request_profile.get("styleAxes") or preferences.get("style_axes", {}),
-                    "style_tags": request_profile.get("styleTags") or preferences.get("style_tags", []),
-                    "favorite_colors": request_profile.get("favoriteColors") or preferences.get("favorite_colors", []),
-                    "avoid_colors": request_profile.get("avoidColors") or preferences.get("avoid_colors", []),
-                    "fit_preference": request_profile.get("fitPreference") or preferences.get("fit_preference"),
+                    "height_cm": pick_profile("height", "height_cm"),
+                    "weight_kg": pick_profile("weight", "weight_kg"),
+                    "bmi": pick_profile("bmi"),
+                    "skin_tone": pick_profile("skinTone", "skin_tone", default=getattr(db_profile, "skin_tone", None)),
+                    "body_shape": pick_profile("bodyShape", "body_shape", default=getattr(db_profile, "body_shape", None)),
+                    "face_feature": pick_profile("faceFeature", "face_feature"),
+                    "style_axes": pick_profile("styleAxes", "style_axes", default={}),
+                    "style_tags": pick_profile("styleTags", "style_tags", default=[]),
+                    "favorite_colors": pick_profile("favoriteColors", "favorite_colors", default=[]),
+                    "avoid_colors": pick_profile("avoidColors", "avoid_colors", default=[]),
+                    "fit_preference": pick_profile("fitPreference", "fit_preference"),
                 },
             }
             return json.dumps(profile, ensure_ascii=False)

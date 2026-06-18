@@ -177,7 +177,7 @@ onMounted(async () => {
   authStore.checkAuth()
   if (!authStore.isAuthenticated) { router.push('/login'); return }
   await wardrobeStore.refreshWardrobe()
-  userStore.loadProfile()
+  await userStore.loadProfileFromBackend()
   window.addEventListener('scroll', onScroll)
 })
 
@@ -214,7 +214,7 @@ const onAvatarChange = async (file) => {
 const goToDetail = (outfit) => { trigger('light'); router.push(`/outfit/${outfit.id}`) }
 const goHome = () => { trigger('light'); router.push('/home') }
 const confirmUnlike = (outfit) => { trigger('light'); unlikeTarget.value = outfit }
-const doUnlike = () => { trigger('medium'); userStore.unlikeOutfit(unlikeTarget.value.id); unlikeTarget.value = null }
+const doUnlike = async () => { trigger('medium'); await userStore.unlikeOutfit(unlikeTarget.value.id); unlikeTarget.value = null }
 const handleLogout = () => { trigger('medium'); authStore.logout(); router.push('/login') }
 const goToSettings = () => { trigger('light'); router.push('/profile/settings') }
 const goToProfileEdit = () => { trigger('light'); router.push('/profile/edit') }

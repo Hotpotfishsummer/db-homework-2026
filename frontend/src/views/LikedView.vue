@@ -52,11 +52,13 @@ const authStore = useAuthStore()
 const userStore = useUserStore()
 const { trigger } = useHaptics()
 
-onMounted(() => {
+onMounted(async () => {
   authStore.checkAuth()
   if (!authStore.isAuthenticated) {
     router.push('/login')
+    return
   }
+  await userStore.loadFavoriteOutfitsFromBackend()
 })
 
 const goBack = () => {
@@ -72,9 +74,9 @@ const viewDetail = (outfit) => {
   router.push(`/outfit/${outfit.id}`)
 }
 
-const unlike = (id) => {
+const unlike = async (id) => {
   trigger('light')
-  userStore.unlikeOutfit(id)
+  await userStore.unlikeOutfit(id)
 }
 </script>
 

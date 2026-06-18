@@ -1,6 +1,9 @@
+import { API_BASE_URL } from './api'
+import { useAuthStore } from '../stores/auth'
+
 /**
  * 用户相关 Service
- * 模拟网络请求，支持随时切换真实后端
+ * 头像仍用本地 FileReader，用户档案走后端 /user/me。
  */
 
 // 允许的图片格式
@@ -104,4 +107,37 @@ export const validateImage = (file) => {
     return { valid: false, error: '图片大小不能超过 2MB' }
   }
   return { valid: true }
+}
+
+const authHeaders = () => {
+  const authStore = useAuthStore()
+  const token = authStore.token || localStorage.getItem('token')
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {})
+  }
+}
+
+export const fetchUserProfile = async () => {
+  const response = await fetch(`${API_BASE_URL}/user/me`, {
+    headers: authHeaders()
+  })
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(payload.detail || payload.msg || '获取用户档案失败')
+  }
+  return payload
+}
+
+export const updateUserProfile = async (profile) => {
+  const response = await fetch(`${API_BASE_URL}/user/me`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify(profile)
+  })
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(payload.detail || payload.msg || '保存用户档案失败')
+  }
+  return payload
 }

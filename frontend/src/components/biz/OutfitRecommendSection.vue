@@ -31,10 +31,11 @@
           v-for="(outfit, index) in outfits"
           :key="outfit.id"
           class="outfit-card"
-          @touchstart="onTouchStart"
-          @touchmove="onTouchMove"
+          :style="cardStyle(index)"
+          @touchstart="onTouchStart(index, $event)"
+          @touchmove="onTouchMove($event)"
           @touchend="onTouchEnd(index, $event)"
-          @click="$emit('viewDetail', outfit)"
+          @click="onCardClick(outfit)"
         >
           <div class="card-image">
             <img :src="outfit.image" :alt="outfit.name" />
@@ -53,7 +54,7 @@
             <div class="detail-hint">点击查看完整详情 ›</div>
           </div>
           <div class="card-actions" @click.stop>
-            <button class="action-detail" @click="$emit('viewDetail', outfit)">📋</button>
+            <button class="action-detail" @click="emit('viewDetail', outfit)">📋</button>
             <button class="action-dislike" @click="$emit('dislike', index)">👎</button>
             <button class="action-like" @click="$emit('like', outfit)">❤️</button>
           </div>
@@ -81,7 +82,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps({
   sceneName: {
@@ -118,27 +119,60 @@ const buttonLabel = computed(() => {
 
 let touchStartX = 0
 let touchCurrentX = 0
+let touchStartY = 0
+const activeTouchIndex = ref(null)
+const dragX = ref(0)
+const didSwipe = ref(false)
 
-const onTouchStart = (e) => {
+const cardStyle = (index) => {
+  if (activeTouchIndex.value !== index || dragX.value === 0) return {}
+  return {
+    transform: `translateX(calc(-50% + ${dragX.value}px)) rotate(${dragX.value * 0.04}deg)`,
+  }
+}
+
+const onTouchStart = (index, e) => {
   touchStartX = e.touches[0].clientX
+  touchCurrentX = touchStartX
+  touchStartY = e.touches[0].clientY
+  activeTouchIndex.value = index
+  didSwipe.value = false
+  dragX.value = 0
 }
 
 const onTouchMove = (e) => {
   touchCurrentX = e.touches[0].clientX
+  const deltaX = touchCurrentX - touchStartX
+  const deltaY = e.touches[0].clientY - touchStartY
+  if (Math.abs(deltaX) > Math.abs(deltaY)) {
+    dragX.value = deltaX
+  }
 }
 
 const onTouchEnd = (index, e) => {
   const deltaX = touchCurrentX - touchStartX
 
   if (Math.abs(deltaX) > 100) {
+    didSwipe.value = true
     if (deltaX > 0) {
-      emit('like', props.outfits[0])
+      emit('like', props.outfits[index])
     } else {
       emit('dislike', index)
     }
   }
   touchStartX = 0
   touchCurrentX = 0
+  touchStartY = 0
+  activeTouchIndex.value = null
+  dragX.value = 0
+}
+
+const onCardClick = (outfit) => {
+  if (didSwipe.value) {
+    didSwipe.value = false
+    return
+  }
+  emit('viewDetail', outfit)
 }
 </script>
 
