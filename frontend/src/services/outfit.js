@@ -35,9 +35,68 @@ export async function generateOutfit(params) {
   return { outfits: [normalizeRecommendation(payload.data, params)] }
 }
 
+export async function fetchFavoriteOutfits() {
+  const authStore = useAuthStore()
+  const token = authStore.token || localStorage.getItem('token')
+
+  const response = await fetch(`${API_BASE_URL}/outfit/favorites`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  })
+
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok || payload.code !== 200) {
+    const message = payload?.msg || payload?.detail || `收藏加载失败 (HTTP ${response.status})`
+    throw new Error(message)
+  }
+
+  return (payload.data || []).map(item => normalizeRecommendation(item, { scene: item.scene }))
+}
+
+export async function favoriteOutfit(recommendId) {
+  const authStore = useAuthStore()
+  const token = authStore.token || localStorage.getItem('token')
+
+  const response = await fetch(`${API_BASE_URL}/outfit/favorites/${recommendId}`, {
+    method: 'POST',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  })
+
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok || payload.code !== 200) {
+    const message = payload?.msg || payload?.detail || `收藏失败 (HTTP ${response.status})`
+    throw new Error(message)
+  }
+
+  return payload.data ? normalizeRecommendation(payload.data, { scene: payload.data.scene }) : null
+}
+
+export async function unfavoriteOutfit(recommendId) {
+  const authStore = useAuthStore()
+  const token = authStore.token || localStorage.getItem('token')
+
+  const response = await fetch(`${API_BASE_URL}/outfit/favorites/${recommendId}`, {
+    method: 'DELETE',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  })
+
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok || payload.code !== 200) {
+    const message = payload?.msg || payload?.detail || `取消收藏失败 (HTTP ${response.status})`
+    throw new Error(message)
+  }
+
+  return payload.data
+}
+
 /**
  * 将后端返回的单条推荐 (data) 适配为 OutfitCard 期望的 outfit 对象。
- * - 槽位 top/bottom/shoes/accessory 从 selectedItems 按 category 匹配
+ * - 槽位 top/outerwear/bottom/shoes/accessory 从 selectedItems 按 category 匹配
  * - 衣橱为空/单品不足时 selectedItems=[] 也会得到一张空卡，UI 自行处理
  */
 function normalizeRecommendation(data, params) {
@@ -48,12 +107,13 @@ function normalizeRecommendation(data, params) {
     items.find((it) => (it?.category || '').toLowerCase() === category) || null
 
   const top = pickByCategory('top')
+  const outerwear = pickByCategory('outerwear')
   const bottom = pickByCategory('bottom')
   const shoes = pickByCategory('shoes')
   const accessory =
     pickByCategory('accessory') || pickByCategory('bag') || null
 
-  const fallbackItem = items[0] || null
+  const fallbackItem = top || outerwear || bottom || shoes || accessory || items[0] || null
   const safe = (item) =>
     item
       ? {
@@ -65,22 +125,25 @@ function normalizeRecommendation(data, params) {
       : null
 
   const weatherNote = data?.weatherSummary || '已根据实时天气、衣橱和数字人体卡片生成'
-  const outfitId = data?.id || `AI-${Date.now().toString(36).toUpperCase()}`
+  const outfitId = data?.outfitId || data?.recommendId || data?.id || `AI-${Date.now().toString(36).toUpperCase()}`
 
   return {
     outfitId,
     id: outfitId,
+    recommendId: data?.recommendId || data?.outfitId || data?.id || null,
     scene: data?.scene || scene || '休闲',
     matchRate: typeof data?.matchRate === 'number' ? data.matchRate : 0,
-    top: safe(top) || safe(fallbackItem),
+    top: safe(top),
+    outerwear: safe(outerwear),
     bottom: safe(bottom),
     shoes: safe(shoes),
     accessory: safe(accessory),
     reason: data?.reason || data?.description || '已根据你的衣橱、实时天气和数字人体卡片生成搭配建议',
     weatherNote,
     name: data?.name || '',
-    image: safe(top)?.image || safe(fallbackItem)?.image || '',
+    image: safe(top)?.image || safe(outerwear)?.image || safe(fallbackItem)?.image || '',
     description: data?.description || '',
+    likedAt: data?.likedAt || null,
     generatedBy: data?.generatedBy || 'langchain-agent'
   }
 }

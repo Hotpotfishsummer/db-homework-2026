@@ -95,9 +95,9 @@ const handleGenerate = async (params) => {
   }
 }
 
-const handleLike = (outfit) => {
+const handleLike = async (outfit) => {
   trigger('success')
-  outfitStore.likeOutfit(outfit)
+  await outfitStore.likeOutfit(outfit)
 }
 
 const handleSkip = (outfit) => {
@@ -107,7 +107,7 @@ const handleSkip = (outfit) => {
 
 const handleDetail = (outfit) => {
   trigger('medium')
-  outfitStore.currentOutfit = outfit
+  outfitStore.setCurrentOutfit(outfit)
   router.push(`/outfit/${outfit.outfitId}`)
 }
 

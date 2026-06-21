@@ -3,6 +3,8 @@ import { generateOutfit } from '../services/outfit'
 import { useWardrobeStore } from './wardrobe'
 import { useUserStore } from './user'
 
+const CURRENT_OUTFIT_KEY = 'l-wardrobe.current-outfit'
+
 export const useOutfitStore = defineStore('outfit', {
   state: () => ({
     outfits: [],
@@ -15,7 +17,6 @@ export const useOutfitStore = defineStore('outfit', {
 
   getters: {
     hasOutfits: (state) => state.outfits.length > 0,
-    currentOutfit: (state) => state.outfits[0] || null
   },
 
   actions: {
@@ -36,13 +37,17 @@ export const useOutfitStore = defineStore('outfit', {
         const wardrobeStore = useWardrobeStore()
         const userStore = useUserStore()
         const wardrobeIds = wardrobeStore.availableClothes.map(c => c.id)
+        const bodyProfile = userStore.getBodyProfilePayload()
 
         const result = await generateOutfit({
           scene,
           wardrobeIds,
-          bodyProfile: userStore.profile
+          bodyProfile
         })
         this.outfits = result.outfits
+        if (this.outfits.length > 0) {
+          this.setCurrentOutfit(this.outfits[0])
+        }
       } catch (error) {
         this.generationError = error.message
         throw error
@@ -52,9 +57,36 @@ export const useOutfitStore = defineStore('outfit', {
       }
     },
 
-    likeOutfit(outfit) {
+    setCurrentOutfit(outfit) {
+      this.currentOutfit = outfit || null
+      if (outfit) {
+        sessionStorage.setItem(CURRENT_OUTFIT_KEY, JSON.stringify(outfit))
+      } else {
+        sessionStorage.removeItem(CURRENT_OUTFIT_KEY)
+      }
+    },
+
+    getPersistedCurrentOutfit() {
+      if (this.currentOutfit) {
+        return this.currentOutfit
+      }
+      const raw = sessionStorage.getItem(CURRENT_OUTFIT_KEY)
+      if (!raw) {
+        return null
+      }
+      try {
+        const outfit = JSON.parse(raw)
+        this.currentOutfit = outfit
+        return outfit
+      } catch {
+        sessionStorage.removeItem(CURRENT_OUTFIT_KEY)
+        return null
+      }
+    },
+
+    async likeOutfit(outfit) {
       const userStore = useUserStore()
-      userStore.likeOutfit(outfit)
+      await userStore.likeOutfit(outfit)
       userStore.addToHistory(outfit)
       this.removeCurrentOutfit()
     },
@@ -77,6 +109,7 @@ export const useOutfitStore = defineStore('outfit', {
       this.isGenerating = false
       this.currentState = 'input'
       this.generationError = null
+      this.setCurrentOutfit(null)
     }
   }
 })

@@ -165,10 +165,17 @@ class GarmentResponse(BaseModel):
 
 
 class DailyTipResponse(BaseModel):
-    """Schema for daily tip response."""
-    tip: str
-    weather_summary: str | None
-    generated_at: datetime
+    """Schema for the daily styling knowledge popup."""
+    tip_id: int | None = None
+    tip_date: str | None = None
+    tip_type: str = "knowledge"
+    title: str
+    content: str
+    example: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    generated_by: str = "fallback"
+    viewed_today: bool = False
+    created_at: datetime | None = None
 
 
 class UserProfile(BaseModel):
@@ -176,8 +183,22 @@ class UserProfile(BaseModel):
     user_id: int
     username: str
     display_name: str | None = None
+    avatar_url: str | None = None
+    bio: str | None = None
     style_preference: str | None = None
     location: str | None = None
+    skin_tone: str | None = None
+    body_shape: str | None = None
+    preferences: dict = Field(default_factory=dict)
+    height: float | None = None
+    weight: float | None = None
+    bmi: float | str | None = None
+    face_feature: str | None = None
+    style_axes: dict = Field(default_factory=dict)
+    style_tags: list[str] = Field(default_factory=list)
+    favorite_colors: list[str] = Field(default_factory=list)
+    avoid_colors: list[str] = Field(default_factory=list)
+    fit_preference: str | None = None
     wardrobe_count: int = 0
     created_at: datetime | None = None
 
@@ -185,8 +206,22 @@ class UserProfile(BaseModel):
 class UserProfileUpdate(BaseModel):
     """Schema for updating user profile."""
     display_name: str | None = None
+    avatar_url: str | None = None
+    bio: str | None = None
     style_preference: str | None = None
     location: str | None = None
+    skin_tone: str | None = None
+    body_shape: str | None = None
+    preferences: dict | None = None
+    height: float | None = None
+    weight: float | None = None
+    bmi: float | str | None = None
+    face_feature: str | None = None
+    style_axes: dict | None = None
+    style_tags: list[str] | None = None
+    favorite_colors: list[str] | None = None
+    avoid_colors: list[str] | None = None
+    fit_preference: str | None = None
 
 
 class AuthRegisterRequest(BaseModel):
@@ -229,17 +264,6 @@ class OutfitRecommendRequest(BaseModel):
     bodyProfile: dict | None = None
 
 
-class DailyStylingAdvice(BaseModel):
-    """Schema for daily styling advice returned by the agent."""
-    user_id: str | None = None
-    tip: str
-    weather_summary: str | None = None
-    wardrobe_items_considered: int = 0
-    generated_by: str = "fallback"
-    tool_summary: list[str] = Field(default_factory=list)
-    raw_output: str | None = None
-
-
 class StylingRecommendation(BaseModel):
     """Schema for outfit recommendation returned by the agent."""
     id: str
@@ -259,7 +283,7 @@ class StylingRecommendation(BaseModel):
 class DailyTipEnvelope(BaseModel):
     """Envelope for the daily tip API."""
     code: int = 200
-    data: DailyStylingAdvice
+    data: DailyTipResponse
     msg: str = "success"
 
 
