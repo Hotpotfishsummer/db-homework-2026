@@ -213,10 +213,31 @@ export const useUserStore = defineStore('user', {
     },
 
     addToHistory(outfit) {
+      // 跳过 AI 推荐的搭配，不记录到浏览历史
+      if (outfit.source === 'ai') return
+
+      const outfitId = outfit.outfitId || outfit.id
+      // 如果已存在，先删除旧记录，避免重复
+      this.historyOutfits = this.historyOutfits.filter(
+        item => (item.outfitId || item.id) !== outfitId
+      )
+      // 添加到最前面
       this.historyOutfits.unshift({ ...outfit, viewedAt: new Date().toISOString() })
       if (this.historyOutfits.length > 50) {
         this.historyOutfits.pop()
       }
+      this.persistLocalOutfitActivity()
+    },
+
+    removeFromHistory(outfitId) {
+      this.historyOutfits = this.historyOutfits.filter(
+        item => (item.outfitId || item.id) !== outfitId
+      )
+      this.persistLocalOutfitActivity()
+    },
+
+    clearHistory() {
+      this.historyOutfits = []
       this.persistLocalOutfitActivity()
     },
 

@@ -176,6 +176,17 @@ onMounted(async () => {
   loadDailyTip({ autoOpen: true })
   // 仅加载衣橱数据用于判断可用衣物数量,不再自动生成任何占位搭配
   await wardrobeStore.refreshWardrobe()
+
+  // 恢复之前的 AI 搭配结果（避免切换页面后数据丢失）
+  if (outfitStore.outfits.length > 0) {
+    outfits.value = outfitStore.outfits
+    outfitHasGenerated.value = true
+  }
+
+  // 恢复之前的 AI 推荐结果
+  if (recStore.items.length > 0 || recStore.outfit || recStore.gapReport) {
+    recHasGenerated.value = true
+  }
 })
 
 const loadDailyTip = async ({ autoOpen = false } = {}) => {
@@ -304,7 +315,7 @@ const loadOutfits = async () => {
       wardrobeIds,
       bodyProfile: userStore.getBodyProfilePayload()
     })
-    outfits.value = (result.outfits || []).map(item => ({ ...item, clothes: availableClothes }))
+    outfits.value = (result.outfits || []).map(item => ({ ...item, clothes: availableClothes, source: 'ai' }))
     outfitStore.outfits = outfits.value
   } catch (error) {
     console.warn('搭配生成失败,等待用户重试:', error.message)

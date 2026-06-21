@@ -76,6 +76,7 @@
         :outfits="userStore.historyOutfits"
         @go-to-detail="goToDetail"
         @go-home="goHome"
+        @delete="deleteHistory"
       />
     </div>
 
@@ -95,8 +96,22 @@
     />
     <ConfirmDialog
       :visible="!!unlikeTarget"
+      title="移出珍藏"
+      description="这份穿搭灵感将从你的收藏夹中悄然离去"
+      cancel-text="再想想"
+      confirm-text="移出收藏"
       @cancel="unlikeTarget = null"
       @confirm="doUnlike"
+    />
+    <ConfirmDialog
+      :visible="!!deleteTarget"
+      title="删除记录"
+      description="确定要删除这条浏览记录吗？"
+      cancel-text="取消"
+      confirm-text="删除"
+      :danger="true"
+      @cancel="deleteTarget = null"
+      @confirm="doDeleteHistory"
     />
   </div>
 </template>
@@ -128,6 +143,7 @@ const previewUrl = ref('')
 const activeTab = ref('liked')
 const showAvatarModal = ref(false)
 const unlikeTarget = ref(null)
+const deleteTarget = ref(null)
 const isTabSticky = ref(false)
 const tabsComponent = ref(null)
 
@@ -214,6 +230,8 @@ const doUnlike = async () => { trigger('medium'); await userStore.unlikeOutfit(u
 const handleLogout = () => { trigger('medium'); authStore.logout(); router.push('/login') }
 const goToSettings = () => { trigger('light'); router.push('/profile/settings') }
 const goToProfileEdit = () => { trigger('light'); router.push('/profile/edit') }
+const deleteHistory = (outfitId) => { trigger('light'); deleteTarget.value = outfitId }
+const doDeleteHistory = () => { trigger('medium'); userStore.removeFromHistory(deleteTarget.value); deleteTarget.value = null }
 </script>
 
 <style scoped>

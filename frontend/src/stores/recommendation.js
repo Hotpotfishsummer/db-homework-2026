@@ -84,7 +84,7 @@ export const useRecommendationStore = defineStore('recommendation', {
       this.outfit = null
       try {
         const data = await generateShoppingOutfit({ scene })
-        this.outfit = data.outfit || null
+        this.outfit = data.outfit ? { ...data.outfit, source: 'ai' } : null
         this.outfitWeather = data.weatherSummary || ''
         this.outfitGeneratedBy = data.generatedBy || 'fallback'
       } catch (err) {
