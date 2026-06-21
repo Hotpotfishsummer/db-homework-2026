@@ -79,9 +79,6 @@
       />
     </div>
 
-    <!-- User LLM Configuration -->
-    <UserLLMSettings />
-
     <!-- Logout -->
     <button class="btn-logout" @click="handleLogout">退出登录</button>
     <p class="bottom-hint">~ 探索更多穿搭灵感 ~</p>
@@ -119,7 +116,6 @@ import LikedOutfitsPanel from '../components/profile/LikedOutfitsPanel.vue'
 import HistoryPanel from '../components/profile/HistoryPanel.vue'
 import AvatarModal from '../components/profile/AvatarModal.vue'
 import ConfirmDialog from '../components/profile/ConfirmDialog.vue'
-import UserLLMSettings from '../components/profile/UserLLMSettings.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
