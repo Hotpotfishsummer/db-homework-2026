@@ -83,17 +83,22 @@ class RecommendationAgentService(BaseAgentService):
         tools = self._build_recommendation_tools(resolved_user_id, resolved_location)
         logger.info("Items recommendation agent tools prepared: tool_count=%s", len(tools))
 
-        result = await self._run_agent(
-            system_prompt=self._items_system_prompt(),
-            user_prompt=self._items_user_prompt(
-                scene=scene, user_id=resolved_user_id, location=resolved_location, gap_focus=gap_focus,
-            ),
-            tools=tools,
-            user_llm=user_llm,
-        )
-        normalized = self._normalize_items_result(
-            result, scene=scene, user_id=resolved_user_id, location=resolved_location,
-        )
+        try:
+            result = await self._run_agent(
+                system_prompt=self._items_system_prompt(),
+                user_prompt=self._items_user_prompt(
+                    scene=scene, user_id=resolved_user_id, location=resolved_location, gap_focus=gap_focus,
+                ),
+                tools=tools,
+                user_llm=user_llm,
+            )
+            normalized = self._normalize_items_result(
+                result, scene=scene, user_id=resolved_user_id, location=resolved_location,
+            )
+        except Exception as exc:
+            logger.exception("Items recommendation agent failed; using fallback: %s", exc)
+            normalized = self._fallback_items(scene, gap_focus)
+            normalized["user_id"] = resolved_user_id
 
         # Persist each recommended item to the shopping_recommendations table
         # with status=pending. We do this *after* normalization so any fallback
@@ -138,17 +143,22 @@ class RecommendationAgentService(BaseAgentService):
             return self._fallback_shopping_outfit(scene)
 
         tools = self._build_recommendation_tools(resolved_user_id, resolved_location)
-        result = await self._run_agent(
-            system_prompt=self._shopping_outfit_system_prompt(),
-            user_prompt=self._shopping_outfit_user_prompt(
-                scene=scene, user_id=resolved_user_id, location=resolved_location,
-            ),
-            tools=tools,
-            user_llm=user_llm,
-        )
-        normalized = self._normalize_shopping_outfit_result(
-            result, scene=scene, user_id=resolved_user_id, location=resolved_location,
-        )
+        try:
+            result = await self._run_agent(
+                system_prompt=self._shopping_outfit_system_prompt(),
+                user_prompt=self._shopping_outfit_user_prompt(
+                    scene=scene, user_id=resolved_user_id, location=resolved_location,
+                ),
+                tools=tools,
+                user_llm=user_llm,
+            )
+            normalized = self._normalize_shopping_outfit_result(
+                result, scene=scene, user_id=resolved_user_id, location=resolved_location,
+            )
+        except Exception as exc:
+            logger.exception("Shopping-outfit agent failed; using fallback: %s", exc)
+            normalized = self._fallback_shopping_outfit(scene)
+            normalized["user_id"] = resolved_user_id
         logger.info(
             "Shopping-outfit finished: slot_count=%s elapsed_ms=%.2f",
             len(normalized.get("outfit", {}).get("slots", [])),
@@ -180,13 +190,17 @@ class RecommendationAgentService(BaseAgentService):
             return self._fallback_gap_report(gap_data, resolved_user_id)
 
         tools = self._build_recommendation_tools(resolved_user_id, resolved_location)
-        result = await self._run_agent(
-            system_prompt=self._gap_system_prompt(),
-            user_prompt=self._gap_user_prompt(user_id=resolved_user_id, gap_data=gap_data),
-            tools=tools,
-            user_llm=user_llm,
-        )
-        normalized = self._normalize_gap_result(result, gap_data, resolved_user_id)
+        try:
+            result = await self._run_agent(
+                system_prompt=self._gap_system_prompt(),
+                user_prompt=self._gap_user_prompt(user_id=resolved_user_id, gap_data=gap_data),
+                tools=tools,
+                user_llm=user_llm,
+            )
+            normalized = self._normalize_gap_result(result, gap_data, resolved_user_id)
+        except Exception as exc:
+            logger.exception("Gap analysis agent failed; using fallback: %s", exc)
+            normalized = self._fallback_gap_report(gap_data, resolved_user_id)
         logger.info(
             "Gap analysis finished: gap_count=%s elapsed_ms=%.2f",
             len(normalized.get("report", {}).get("gaps", [])),
