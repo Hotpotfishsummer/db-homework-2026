@@ -5,7 +5,7 @@
         <h1>发现穿搭灵感</h1>
         <p>AI 为你精选推荐</p>
       </div>
-      <div class="header-right">
+      <div class="header-right desktop-only">
         <div class="quick-action">
           <span class="action-chip" @click="router.push('/add-cloth')">+ 录入衣服</span>
           <span class="action-chip" @click="router.push('/outfit-match')">✨ AI 搭配</span>
@@ -176,6 +176,17 @@ onMounted(async () => {
   loadDailyTip({ autoOpen: true })
   // 仅加载衣橱数据用于判断可用衣物数量,不再自动生成任何占位搭配
   await wardrobeStore.refreshWardrobe()
+
+  // 恢复之前的 AI 搭配结果（避免切换页面后数据丢失）
+  if (outfitStore.outfits.length > 0) {
+    outfits.value = outfitStore.outfits
+    outfitHasGenerated.value = true
+  }
+
+  // 恢复之前的 AI 推荐结果
+  if (recStore.items.length > 0 || recStore.outfit || recStore.gapReport) {
+    recHasGenerated.value = true
+  }
 })
 
 const loadDailyTip = async ({ autoOpen = false } = {}) => {
@@ -304,7 +315,7 @@ const loadOutfits = async () => {
       wardrobeIds,
       bodyProfile: userStore.getBodyProfilePayload()
     })
-    outfits.value = (result.outfits || []).map(item => ({ ...item, clothes: availableClothes }))
+    outfits.value = (result.outfits || []).map(item => ({ ...item, clothes: availableClothes, source: 'ai' }))
     outfitStore.outfits = outfits.value
   } catch (error) {
     console.warn('搭配生成失败,等待用户重试:', error.message)
@@ -477,6 +488,7 @@ watch(() => recStore.mode, () => {
   padding: 12px 20px 0;
 }
 
+/* Daily tip floating button */
 .daily-tip-fab {
   position: fixed;
   right: 18px;
@@ -490,7 +502,7 @@ watch(() => recStore.mode, () => {
   border: 1px solid rgba(29, 29, 31, 0.08);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.94);
-  color: var(--text-primary, #1d1d1f);
+  color: var(--text-primary);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
   cursor: pointer;
   outline: none;
@@ -527,7 +539,6 @@ watch(() => recStore.mode, () => {
     bottom: 28px;
   }
 }
-
 /* Quick action buttons in header */
 .quick-action {
   display: flex;
@@ -576,6 +587,17 @@ watch(() => recStore.mode, () => {
 .action-chip:last-child:hover {
   background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
   box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
+/* Hide on mobile, show on desktop */
+.desktop-only {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .desktop-only {
+    display: block;
+  }
 }
 
 /* PC layout adjustments */

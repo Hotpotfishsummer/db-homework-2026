@@ -13,6 +13,11 @@
           <h4>{{ outfit.name }}</h4>
           <p>{{ formatTime(outfit.viewedAt) }}</p>
         </div>
+        <button
+          class="delete-btn"
+          @click.stop="$emit('delete', outfit.outfitId || outfit.id)"
+          title="删除记录"
+        >✕</button>
         <span class="history-arrow">›</span>
       </div>
     </div>
@@ -30,7 +35,7 @@ defineProps({
   outfits: { type: Array, default: () => [] }
 })
 
-defineEmits(['goToDetail', 'goHome'])
+defineEmits(['goToDetail', 'goHome', 'delete'])
 
 const formatTime = (dateStr) => {
   const date = new Date(dateStr)
@@ -94,6 +99,28 @@ const formatTime = (dateStr) => {
   font-size: 12px;
   color: var(--text-tertiary);
   margin: 0;
+}
+
+.delete-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: var(--bg-secondary);
+  color: var(--text-tertiary);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s;
+  margin-right: 8px;
+}
+
+.delete-btn:hover {
+  background: rgba(255, 77, 79, 0.1);
+  color: #ff4d4f;
 }
 
 .history-arrow {

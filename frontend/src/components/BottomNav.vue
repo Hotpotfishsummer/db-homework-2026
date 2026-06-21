@@ -114,13 +114,14 @@ const handleSheetAction = (type) => {
 .action-btn {
   width: 56px;
   height: 56px;
-  background: var(--accent-color);
+  background: #ffffff;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   transform: translateY(-20px);
   transition: all 0.3s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .action-btn:active {

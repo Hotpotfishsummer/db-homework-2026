@@ -3,11 +3,11 @@
     <div v-if="visible" class="confirm-dialog" @click.self="$emit('cancel')">
       <div class="confirm-mask"></div>
       <div class="confirm-card">
-        <p class="confirm-title">移出珍藏</p>
-        <p class="confirm-desc">这份穿搭灵感将从你的收藏夹中悄然离去</p>
+        <p class="confirm-title">{{ title }}</p>
+        <p class="confirm-desc">{{ description }}</p>
         <div class="confirm-actions">
-          <button class="confirm-btn cancel" @click="$emit('cancel')">再想想</button>
-          <button class="confirm-btn confirm" @click="$emit('confirm')">移出收藏</button>
+          <button class="confirm-btn cancel" @click="$emit('cancel')">{{ cancelText }}</button>
+          <button class="confirm-btn confirm" :class="{ danger }" @click="$emit('confirm')">{{ confirmText }}</button>
         </div>
       </div>
     </div>
@@ -16,7 +16,12 @@
 
 <script setup>
 defineProps({
-  visible: { type: Boolean, default: false }
+  visible: { type: Boolean, default: false },
+  title: { type: String, default: '确认操作' },
+  description: { type: String, default: '确定要执行此操作吗？' },
+  cancelText: { type: String, default: '取消' },
+  confirmText: { type: String, default: '确定' },
+  danger: { type: Boolean, default: false }
 })
 defineEmits(['cancel', 'confirm'])
 </script>
@@ -99,5 +104,9 @@ defineEmits(['cancel', 'confirm'])
 .confirm-btn.confirm {
   background: var(--accent-color);
   color: var(--on-primary);
+}
+
+.confirm-btn.confirm.danger {
+  background: #ff4d4f;
 }
 </style>
