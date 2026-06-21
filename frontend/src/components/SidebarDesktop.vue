@@ -157,13 +157,14 @@ const handleSheetAction = (type) => {
 .action-btn {
   width: 48px;
   height: 48px;
-  background: var(--accent-color);
+  background: #ffffff;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.3s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .action-btn:active {

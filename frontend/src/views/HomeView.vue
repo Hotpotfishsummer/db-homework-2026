@@ -5,7 +5,7 @@
         <h1>发现穿搭灵感</h1>
         <p>AI 为你精选推荐</p>
       </div>
-      <div class="header-right">
+      <div class="header-right desktop-only">
         <div class="quick-action">
           <span class="action-chip" @click="router.push('/add-cloth')">+ 录入衣服</span>
           <span class="action-chip" @click="router.push('/outfit-match')">✨ AI 搭配</span>
@@ -576,6 +576,17 @@ watch(() => recStore.mode, () => {
 .action-chip:last-child:hover {
   background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
   box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
+/* Hide on mobile, show on desktop */
+.desktop-only {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .desktop-only {
+    display: block;
+  }
 }
 
 /* PC layout adjustments */
