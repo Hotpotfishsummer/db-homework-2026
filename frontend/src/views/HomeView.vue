@@ -322,10 +322,24 @@ watch(() => recStore.mode, () => {
 }
 
 .home-header {
-  padding: 50px 24px 20px;
+  padding: 28px 20px 16px;
   text-align: center;
   background: var(--accent-color);
   border-radius: 0 0 30px 30px;
+}
+
+.header-left h1 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 4px;
+  letter-spacing: 0.5px;
+}
+
+.header-left p {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+  margin-bottom: 14px;
 }
 
 @media (min-width: 768px) {
@@ -350,6 +364,16 @@ watch(() => recStore.mode, () => {
   .home-header .header-left {
     text-align: left;
   }
+
+  .header-left h1 {
+    font-size: 24px;
+    margin-bottom: 6px;
+  }
+
+  .header-left p {
+    font-size: 15px;
+    margin-bottom: 0;
+  }
 }
 
 .tabs-wrapper {
@@ -358,5 +382,71 @@ watch(() => recStore.mode, () => {
 
 .rec-mode-tabs {
   padding: 12px 20px 0;
+}
+
+/* Quick action buttons in header */
+.quick-action {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.action-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.action-chip:active {
+  transform: scale(0.96);
+}
+
+/* 录入衣服 button - Blue/Purple style */
+.action-chip:first-child {
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--accent-color);
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.action-chip:first-child:hover {
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* AI 搭配 button - Amber/Orange style to distinguish */
+.action-chip:last-child {
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+  color: #ffffff;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+.action-chip:last-child:hover {
+  background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
+/* PC layout adjustments */
+@media (min-width: 1024px) {
+  .header-right {
+    margin-right: 40px;
+  }
+
+  .quick-action {
+    gap: 12px;
+  }
+
+  .action-chip {
+    padding: 10px 22px;
+    font-size: 15px;
+  }
 }
 </style>

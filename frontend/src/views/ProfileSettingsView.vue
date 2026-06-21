@@ -103,6 +103,9 @@
         </div>
       </div>
 
+      <!-- LLM 配置 -->
+      <UserLLMSettings />
+
       <p v-if="uploadError" class="upload-error">{{ uploadError }}</p>
 
       <!-- 确认修改 -->
@@ -124,6 +127,7 @@ import { useUserStore } from '../stores/user'
 import { useThemeStore } from '../stores/theme'
 import { useHaptics } from '../composables/useHaptics'
 import { validateImage } from '../services/user'
+import UserLLMSettings from '../components/profile/UserLLMSettings.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()

@@ -44,11 +44,8 @@ function dismiss() {
 }
 
 function goToSettings() {
-  // Profile page is the home of all settings; the LLM section auto-expands
-  // when the user already has a validated config (and we just dismissed this
-  // hint, so the user is intentionally going there).
   dismiss()
-  router.push('/profile')
+  router.push('/profile/settings')
 }
 </script>
 
