@@ -5,6 +5,7 @@ from db.models import (
     User, UserProfile, Clothes, WardrobeItem,
     OutfitRecommendation, RecommendationItem,
     OutfitFavorite, OutfitHistory, DailyTip,
+    ShoppingRecommendation,
 )
 from db.session import _config, _build_async_url
 

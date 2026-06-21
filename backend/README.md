@@ -105,7 +105,19 @@ docker compose up --build backend
 
 ## AI 层架构（LangChain Agent）
 
-**核心文件**: `app/services/styling_agent.py`
+**核心文件**:
+- `app/services/base_agent.py` — `BaseAgentService` 基类（LLM 配置 / Agent 执行 / 结果归一化）
+- `app/services/styling_agent.py` — `StylingAgentService`（AI 搭配：衣橱内组合）
+- `app/services/recommendation_agent.py` — `RecommendationAgentService`（AI 推荐：新购单品 + 嵌入搭配 + 缺口报告）
+
+### 双轨职责划分
+
+| Service | 业务问题 | 输出 | 工具数 |
+|---------|----------|------|--------|
+| `StylingAgentService` | 今天穿什么 | 1 套搭配 (slot=衣橱已有) | 8 |
+| `RecommendationAgentService` | 还缺什么 / 要买什么 | 5-8 件新单品 / 嵌入搭配 / 缺口报告 | 7 |
+
+两个 service 都继承 `BaseAgentService`，共享 `_build_llm` / `_run_agent` / `_extract_output_and_steps` / `_prompt_callable` 等基础设施，只在工具集、系统提示词、输出 JSON schema 三个维度差异化。
 
 ### 为什么用 Agent？
 
@@ -123,7 +135,7 @@ docker compose up --build backend
 - Token 消耗远低于 ReAct（无 "Thought/Action/Observation" 文本循环）
 - `max_iterations=3`，超时可控
 
-### 8 个动态工具
+### 8 个动态工具（outfit 专属）
 
 每个工具都是 `@tool` 装饰的 async 函数，绑定同一个 `AsyncSession`：
 
@@ -181,6 +193,47 @@ Agent 返回无效 JSON？   → Pydantic 解析失败 → fallback
 
 所有 fallback 输出格式与成功响应完全一致，前端无感知。
 
+### 7 个动态工具（recommendation 专属）
+
+`RecommendationAgentService` 复用通用 6 个工具 + 1 个专属工具 `analyze_wardrobe_gap`：
+
+| 工具名 | 查询目标 | 说明 |
+|--------|----------|------|
+| `get_weather` | 和风天气 API | 复用通用工具 |
+| `search_wardrobe` | `ClothesRepository.list_by_user()` | 复用, 查重 + 风格匹配 |
+| `get_wardrobe_items_by_ids` | `ClothesRepository.get_by_ids()` | 复用 |
+| `count_wardrobe_items` | `ClothesRepository.count_by_user()` | 复用 |
+| `get_user_profile` | `UserRepository.get_by_id()` | 复用 |
+| `get_history_recommendations` | `RecommendationRepository.list_by_user()` | 复用 |
+| `analyze_wardrobe_gap` | `ClothesRepository.list_by_user()` 按 category 聚合 | 🆕 recommendation 专属, 输出"缺什么 / 缺几件 / 建议补什么" |
+
+### Recommendation Agent 流程
+
+```
+POST /api/v1/recommend/items
+  │
+  ├─ 实例化 RecommendationAgentService(db)
+  │
+  ├─ _can_use_agent() → 失败则 _fallback_items()
+  │
+  ├─ _build_recommendation_tools() 组装 7 个工具
+  │
+  ├─ create_react_agent(llm, tools, prompt=_prompt_callable).ainvoke()
+  │     ├─ LLM → get_user_profile → style_preference
+  │     ├─ LLM → get_weather
+  │     ├─ LLM → analyze_wardrobe_gap → 衣橱分类缺口
+  │     ├─ LLM → search_wardrobe (查重 + 风格对齐)
+  │     └─ LLM 输出 5-8 件新单品 (name/category/color/style_tags/price_range/reason/priority)
+  │
+  ├─ ShoppingRecommendationRepository.create_batch() 持久化
+  │
+  ├─ _normalize_items_result() 解析 JSON
+  │
+  └─ 返回 {code, data: {items, scene, weatherSummary, generatedBy}, msg}
+```
+
+`recommend_with_wardrobe` 与 `analyze_wardrobe_gap` 走同一个 service,提示词不同,流程类似。
+
 ---
 
 ## API 文档
@@ -192,7 +245,7 @@ Agent 返回无效 JSON？   → Pydantic 解析失败 → fallback
 | 成功 | `{"code": 200, "data": {...}, "msg": "success"}` |
 | 失败 | `{"code": 400/401/500, "msg": "错误描述"}` |
 
-### 1. AI 穿搭推荐
+### 1. AI 穿搭推荐（衣橱内组合）
 
 **POST** `/api/v1/outfit/recommend`
 
@@ -229,6 +282,127 @@ curl -X POST http://localhost:8080/api/v1/outfit/recommend \
     "weatherSummary": "阴，24°C",
     "toolSummary": ["get_weather: ...", "search_wardrobe: ..."],
     "generatedBy": "langchain-agent"
+  },
+  "msg": "success"
+}
+```
+
+### 1.1 AI 单品推荐 (新购) 🆕
+
+**POST** `/api/v1/recommend/items`
+
+```bash
+curl -X POST http://localhost:8080/api/v1/recommend/items \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer {token}" \
+  -d '{"scene": "commute", "gapFocus": "outerwear"}'
+```
+
+**Request:**
+```json
+{ "scene": "commute", "gapFocus": "outerwear" }
+```
+
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| `scene` | 是 | commute / date / casual / sports / party |
+| `gapFocus` | 否 | top / bottom / outerwear / shoes / accessory, 重点补的品类 |
+
+**Response:**
+```json
+{
+  "code": 200,
+  "data": {
+    "items": [
+      {
+        "id": "uuid-1",
+        "name": "米白色羊毛混纺大衣",
+        "category": "outerwear",
+        "color": "米白",
+        "style_tags": ["极简", "通勤", "百搭"],
+        "price_range": "500-800元",
+        "purchase_url": null,
+        "reason": "你已有较多深色内搭，缺一件浅色外搭来提亮通勤造型",
+        "priority": 92,
+        "status": "pending"
+      }
+    ],
+    "scene": "通勤",
+    "weatherSummary": "阴，24°C",
+    "generatedBy": "langchain-agent"
+  },
+  "msg": "success"
+}
+```
+
+**持久化**：所有推荐自动写入 `shopping_recommendations` (status=pending)。
+
+### 1.2 AI 推荐 + 嵌入搭配 🆕
+
+**POST** `/api/v1/recommend/items/with-outfit`
+
+**Request:**
+```json
+{ "scene": "date" }
+```
+
+**Response (节选):**
+```json
+{
+  "code": 200,
+  "data": {
+    "outfit": {
+      "name": "约会清新搭配",
+      "matchRate": 88,
+      "slots": [
+        { "category": "top", "name": "白T恤", "need_buy": false, "wardrobe_id": 1, "image": "/static/garments/xxx.webp" },
+        { "category": "shoes", "name": "小白鞋", "need_buy": true, "reason": "衣橱没有白色板鞋" }
+      ]
+    },
+    "generatedBy": "langchain-agent"
+  },
+  "msg": "success"
+}
+```
+
+`slot.need_buy=true` 的项是 AI 建议新购的单品；`false` 是衣橱已有。
+
+### 1.3 推荐状态管理 🆕
+
+**PATCH** `/api/v1/recommend/items/{id}`
+
+```bash
+curl -X PATCH http://localhost:8080/api/v1/recommend/items/{id} \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer {token}" \
+  -d '{"status": "bought"}'
+```
+
+`status` 枚举：`pending` | `bought` | `dismissed` | `wishlist`
+
+### 1.4 推荐历史列表 🆕
+
+**GET** `/api/v1/recommend/items?status=pending&limit=20&offset=0`
+
+返回当前用户的历史推荐，按 created_at desc 排序。
+
+### 1.5 衣橱缺口报告 🆕
+
+**POST** `/api/v1/recommend/gap-analysis`
+
+**Response:**
+```json
+{
+  "code": 200,
+  "data": {
+    "report": {
+      "summary": "衣橱整体以休闲款为主，缺少正式通勤外套和深色鞋履",
+      "gaps": [
+        { "category": "outerwear", "current": 1, "suggested": 3, "advice": "建议补 1-2 件可跨场景的中性色外套" },
+        { "category": "shoes", "current": 2, "suggested": 4, "advice": "缺一双深色乐福鞋通勤用" }
+      ],
+      "generatedBy": "langchain-agent"
+    }
   },
   "msg": "success"
 }

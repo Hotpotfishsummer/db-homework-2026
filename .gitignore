@@ -8,7 +8,6 @@ frontend/.env.*.local
 frontend/.vite/
 frontend/.cache/
 npm-debug.log*
-frontend/public/.dev_skip_login
 
 # 后端
 backend/.pytest_cache/
@@ -20,8 +19,10 @@ backend/venv/
 backend/.coverage
 backend/app/static/raw/*
 backend/app/static/processed/*
+backend/app/static/garments/*
 !backend/app/static/raw/.gitkeep
 !backend/app/static/processed/.gitkeep
+!backend/app/static/garments/.gitkeep
 
 # Python
 *.pyc
@@ -37,6 +38,8 @@ build/
 .idea/
 .vscode/
 .claude/
+.agents/
+.codex/
 .vs/
 *.swp
 *.swo
@@ -58,7 +61,12 @@ logs/
 # 临时文件
 *.tmp
 .claude/
+.agents/
+.codex/
 tmp/
 
 # 文档（本地笔记，不提交）
 docs/guides/vscode-docker-debug.md
+
+# 本地 AI 上下文笔记
+.github/

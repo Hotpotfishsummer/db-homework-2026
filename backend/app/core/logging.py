@@ -62,6 +62,19 @@ def setup_logging(level: str = "INFO", log_file: str = "/app/backend/logs/backen
                     "handlers": handler_names,
                     "propagate": False,
                 },
+                # watchfiles in uvicorn reload mode forces its own root logger
+                # to INFO and emits "1 change detected" for every file mutation,
+                # which floods the log. Pin to WARNING.
+                "watchfiles": {
+                    "level": "WARNING",
+                    "handlers": handler_names,
+                    "propagate": False,
+                },
+                "watchfiles.main": {
+                    "level": "WARNING",
+                    "handlers": handler_names,
+                    "propagate": False,
+                },
             },
         }
     )

@@ -8,7 +8,6 @@ export const useOutfitStore = defineStore('outfit', {
     outfits: [],
     isGenerating: false,
     selectedScene: 'casual',
-    selectedWeather: null,
     currentState: 'input', // input | generating | results
     generationError: null,
     currentOutfit: null
@@ -24,14 +23,9 @@ export const useOutfitStore = defineStore('outfit', {
       this.selectedScene = scene
     },
 
-    selectWeather(weather) {
-      this.selectedWeather = weather
-    },
-
     async startGeneration(params) {
-      const { scene, weather } = params
+      const { scene } = params
       this.selectedScene = scene
-      this.selectedWeather = weather
       this.isGenerating = true
       this.currentState = 'generating'
       this.generationError = null
@@ -40,9 +34,14 @@ export const useOutfitStore = defineStore('outfit', {
       try {
         // 传入 wardrobeIds 供真实 API 使用
         const wardrobeStore = useWardrobeStore()
+        const userStore = useUserStore()
         const wardrobeIds = wardrobeStore.availableClothes.map(c => c.id)
 
-        const result = await generateOutfit({ scene, weather, wardrobeIds })
+        const result = await generateOutfit({
+          scene,
+          wardrobeIds,
+          bodyProfile: userStore.profile
+        })
         this.outfits = result.outfits
       } catch (error) {
         this.generationError = error.message

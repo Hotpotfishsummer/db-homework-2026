@@ -36,6 +36,10 @@ services:
       # - ./backend:/app/backend
       - ./db:/app/db
       - ./backend/logs:/app/backend/logs
+      # Persist uploaded garment images across container rebuilds.
+      # Without this, every `docker compose up --build backend` wipes
+      # app/static/garments/ and DB rows become dead links to 404 URLs.
+      - ./backend/app/static:/app/backend/app/static
     ports:
       - "8000:8000"
       - "5678:5678"
@@ -46,7 +50,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "python -c \"import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/health').status)\""
+          "micromamba run -n l-wardrobe python -c \"import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/health').status)\""
         ]
       interval: 10s
       timeout: 5s

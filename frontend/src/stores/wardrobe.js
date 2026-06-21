@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { listGarments } from '../services/garment'
+import { listGarments, deleteGarment } from '../services/garment'
 
 const normalizeImageUrl = (imageUrl) => {
   if (!imageUrl) {
@@ -90,6 +90,34 @@ export const useWardrobeStore = defineStore('wardrobe', {
       if (index > -1) {
         this.clothes.splice(index, 1)
       }
+    },
+
+    /**
+     * 异步删除衣物：先在 UI 上移除，后端成功则保持，失败则回滚。
+     * @param {string|number} id
+     * @returns {Promise<{ok:boolean, msg?:string}>}
+     */
+    async deleteClothAsync(id) {
+      const index = this.clothes.findIndex(item => item.id === id)
+      if (index === -1) {
+        return { ok: false, msg: '衣物不存在' }
+      }
+
+      // 软删除在后端是按 item_id 查的，优先使用 backendId
+      const target = this.clothes[index]
+      const backendId = target.backendId || target.id
+
+      // 乐观更新：先从本地数组移除
+      const removed = this.clothes.splice(index, 1)[0]
+
+      const res = await deleteGarment(backendId)
+      if (res.code !== 200) {
+        // 回滚：把衣物放回原位置
+        this.clothes.splice(index, 0, removed)
+        return { ok: false, msg: res.msg || '删除失败' }
+      }
+
+      return { ok: true }
     },
 
     updateClothStatus(id, status) {

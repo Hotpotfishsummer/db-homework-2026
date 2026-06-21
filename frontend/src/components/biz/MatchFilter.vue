@@ -16,31 +16,6 @@
       </div>
     </div>
 
-    <div class="filter-section">
-      <h3 class="section-label">🌤️ 今日天气</h3>
-      <div class="weather-row" @click="toggleWeatherPicker">
-        <div class="weather-info">
-          <span class="weather-icon">{{ weather.icon }}</span>
-          <span class="weather-text">{{ weather.desc }} {{ weather.temp }}°C</span>
-        </div>
-        <span class="weather-arrow">›</span>
-      </div>
-      <Transition name="fade">
-        <div v-if="showWeatherPicker" class="weather-picker">
-          <div
-            v-for="w in weatherOptions"
-            :key="w.temp"
-            class="weather-option"
-            :class="{ selected: weather.temp === w.temp }"
-            @click="selectWeather(w)"
-          >
-            <span>{{ w.icon }}</span>
-            <span>{{ w.desc }} {{ w.temp }}°C</span>
-          </div>
-        </div>
-      </Transition>
-    </div>
-
     <button class="generate-btn" @click="onGenerate">
       <span class="btn-icon">✨</span>
       <span>开始生成</span>
@@ -63,39 +38,17 @@ const scenes = [
   { id: 'party', name: '派对', icon: '🎉' }
 ]
 
-const weatherOptions = [
-  { desc: '晴天', temp: 22, icon: '☀️' },
-  { desc: '多云', temp: 18, icon: '⛅' },
-  { desc: '阴天', temp: 12, icon: '☁️' },
-  { desc: '小雨', temp: 10, icon: '🌧️' },
-  { desc: '大风', temp: 8, icon: '💨' }
-]
-
 const selectedScene = ref('casual')
-const weather = ref(weatherOptions[0])
-const showWeatherPicker = ref(false)
 
 const onSelectScene = (scene) => {
   trigger('light')
   selectedScene.value = scene
 }
 
-const toggleWeatherPicker = () => {
-  trigger('light')
-  showWeatherPicker.value = !showWeatherPicker.value
-}
-
-const selectWeather = (w) => {
-  trigger('light')
-  weather.value = w
-  showWeatherPicker.value = false
-}
-
 const onGenerate = () => {
   trigger('success')
   emit('generate', {
-    scene: selectedScene.value,
-    weather: weather.value
+    scene: selectedScene.value
   })
 }
 </script>
