@@ -11,15 +11,15 @@
     </div>
 
     <div class="outfit-hero">
-      <img v-if="outfit.image" :src="outfit.image" :alt="outfit.name" />
+      <img v-if="outfit?.image" :src="outfit.image" :alt="outfit.name" />
       <div v-else class="hero-placeholder">👗</div>
       <div class="hero-overlay">
-        <span class="scene-tag">{{ outfit.scene }}</span>
-        <span class="match-tag">💫 {{ outfit.matchRate }}% 搭配度</span>
+        <span class="scene-tag">{{ outfit?.scene || 'AI 搭配' }}</span>
+        <span class="match-tag">💫 {{ outfit?.matchRate || 0 }}% 搭配度</span>
       </div>
     </div>
 
-    <div class="outfit-info">
+    <div v-if="outfit" class="outfit-info">
       <h1>{{ outfit.name }}</h1>
       <p class="description">{{ outfit.description }}</p>
 
@@ -32,7 +32,12 @@
       </div>
     </div>
 
-    <div class="outfit-items-section">
+    <div v-else class="outfit-info">
+      <h1>未找到搭配详情</h1>
+      <p class="description">这套搭配数据没有保留下来，请返回 AI 搭配页重新生成。</p>
+    </div>
+
+    <div v-if="outfitItems.length" class="outfit-items-section">
       <h2 class="section-title">👗 包含单品</h2>
 
       <div class="items-list">
@@ -100,15 +105,7 @@ const outfitStore = useOutfitStore()
 const recStore = useRecommendationStore()
 const { trigger } = useHaptics()
 
-const outfit = ref({
-  id: 1,
-  name: '都市通勤穿搭',
-  description: '简约干练，适合日常上班通勤',
-  scene: '通勤',
-  matchRate: 96,
-  reason: '这套穿搭采用了经典的蓝白配色，上衣的剪裁利落有型，裤装的版型修饰腿型，整体风格干练专业，非常适合职场穿着。',
-  image: ''
-})
+const outfit = ref(null)
 
 const outfitItems = ref([])
 
@@ -119,7 +116,10 @@ const suggestions = ref([
 ])
 
 const isLiked = computed(() => {
-  return userStore.likedOutfits.some(o => o.id === outfit.value.id)
+  if (!outfit.value) return false
+  return userStore.likedOutfits.some(o =>
+    (o.outfitId || o.id) === outfit.value.id || o.recommendId === outfit.value.recommendId
+  )
 })
 
 const needBuySlots = computed(() => outfitItems.value.filter(i => i.needBuy))
@@ -132,26 +132,16 @@ onMounted(() => {
   if (outfitId) {
     loadOutfit(outfitId)
   }
-  userStore.addToHistory(outfit.value)
+  if (outfit.value) {
+    userStore.addToHistory(outfit.value)
+  }
 })
 
 const loadOutfit = (id) => {
   // 1. 优先使用从搭配页(AI 搭配)传来的 outfit 数据
-  if (outfitStore.currentOutfit && outfitStore.currentOutfit.outfitId === id) {
-    const o = outfitStore.currentOutfit
-    outfit.value = {
-      id: o.outfitId,
-      name: `${o.scene}穿搭`,
-      description: o.reason,
-      scene: o.scene,
-      matchRate: o.matchRate,
-      reason: o.reason,
-      image: o.image || o.top?.image || pickFirstOwnedImage([o.top, o.bottom, o.shoes, o.accessory])
-    }
-    outfitItems.value = [o.top, o.bottom, o.shoes, o.accessory].filter(Boolean).map(item => ({
-      ...item,
-      category: getCategoryLabel(item.category)
-    }))
+  const savedOutfit = findOwnedOutfit(id)
+  if (savedOutfit) {
+    applyOwnedOutfit(savedOutfit)
     return
   }
 
@@ -181,8 +171,36 @@ const loadOutfit = (id) => {
     }
   }
 
-  // 3. 兜底: 使用占位数据
-  console.log('未找到搭配数据, 使用占位:', id)
+  console.log('未找到搭配数据:', id)
+}
+
+const findOwnedOutfit = (id) => {
+  const candidates = [
+    outfitStore.currentOutfit,
+    outfitStore.getPersistedCurrentOutfit?.(),
+    ...(outfitStore.outfits || []),
+    ...(userStore.likedOutfits || []),
+  ].filter(Boolean)
+  return candidates.find(o => String(o.outfitId || o.id) === String(id)) || null
+}
+
+const applyOwnedOutfit = (o) => {
+  const items = [o.top, o.outerwear, o.bottom, o.shoes, o.accessory].filter(Boolean)
+  outfit.value = {
+    id: o.outfitId || o.id,
+    outfitId: o.outfitId || o.id,
+    recommendId: o.recommendId || o.outfitId || o.id,
+    name: o.name || `${o.scene || 'AI'}穿搭`,
+    description: o.description || o.reason || 'AI 为你生成的衣橱内搭配方案',
+    scene: o.scene || 'AI 搭配',
+    matchRate: o.matchRate || 0,
+    reason: o.reason || o.description || '基于你的衣橱单品生成',
+    image: o.image || o.top?.image || o.outerwear?.image || pickFirstOwnedImage(items)
+  }
+  outfitItems.value = items.map(item => ({
+    ...item,
+    category: getCategoryLabel(item.category)
+  }))
 }
 
 const pickFirstImage = (o) => {
@@ -209,6 +227,7 @@ const goBack = () => {
 
 const shareOutfit = () => {
   trigger('light')
+  if (!outfit.value) return
   if (navigator.share) {
     navigator.share({
       title: outfit.value.name,
@@ -218,12 +237,13 @@ const shareOutfit = () => {
   }
 }
 
-const toggleLike = () => {
+const toggleLike = async () => {
   trigger('success')
+  if (!outfit.value) return
   if (isLiked.value) {
-    userStore.unlikeOutfit(outfit.value.id)
+    await userStore.unlikeOutfit(outfit.value.id)
   } else {
-    userStore.likeOutfit(outfit.value)
+    await userStore.likeOutfit(outfit.value)
   }
 }
 

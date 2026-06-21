@@ -69,13 +69,13 @@ const draft = reactive({
   fitPreference: null
 })
 
-onMounted(() => {
+onMounted(async () => {
   authStore.checkAuth()
   if (!authStore.isAuthenticated) {
     router.push('/login')
     return
   }
-  userStore.loadProfile()
+  await userStore.loadProfileFromBackend()
   const p = userStore.profile
   Object.assign(draft, {
     height: p.height, weight: p.weight, skinTone: p.skinTone,
@@ -120,9 +120,9 @@ const toggleAvoidColor = (id) => {
   }
 }
 
-const confirmSave = () => {
+const confirmSave = async () => {
   trigger('medium')
-  userStore.updateProfile({
+  await userStore.updateProfile({
     height: draft.height, weight: draft.weight, skinTone: draft.skinTone,
     bodyShape: draft.bodyShape, faceFeature: draft.faceFeature,
     styleAxes: { ...draft.styleAxes },

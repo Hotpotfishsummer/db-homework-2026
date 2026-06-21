@@ -35,11 +35,14 @@
         <label class="form-label">API Key</label>
         <div class="input-with-icon">
           <input
-            :type="showKey ? 'text' : 'password'"
+            type="text"
             v-model="apiKey"
             class="form-input"
+            :class="{ masked: !showKey }"
             placeholder="sk-..."
             autocomplete="off"
+            autocapitalize="off"
+            autocorrect="off"
             spellcheck="false"
           />
           <button
@@ -177,10 +180,6 @@ onMounted(() => {
     baseUrl.value = store.config.base_url || ''
     model.value = store.config.model || ''
     enabled.value = store.config.enabled !== false
-    // Auto-expand if the user has already configured something
-    if (store.config.validated_at) {
-      expanded.value = true
-    }
   }
 })
 
@@ -347,6 +346,11 @@ function onClear() {
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+.form-input.masked {
+  -webkit-text-security: disc;
+  text-security: disc;
 }
 
 .form-input:focus {

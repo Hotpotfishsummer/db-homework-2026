@@ -72,6 +72,15 @@
     </div>
 
     <BottomNav />
+    <button class="daily-tip-fab" type="button" @click="openDailyTip">
+      <span>💡</span>
+      <strong>每日贴士</strong>
+    </button>
+    <DailyTipModal
+      :visible="showDailyTip"
+      :tip="dailyTip"
+      @close="closeDailyTip"
+    />
   </div>
 </template>
 
@@ -82,20 +91,24 @@ import { useAuthStore } from '../stores/auth'
 import { useUserStore } from '../stores/user'
 import { useWardrobeStore } from '../stores/wardrobe'
 import { useRecommendationStore } from '../stores/recommendation'
+import { useOutfitStore } from '../stores/outfit'
 import { useHaptics } from '../composables/useHaptics'
 import { generateOutfit } from '../services/outfit'
+import { fetchDailyTip } from '../services/dailyTip'
 import BottomNav from '../components/BottomNav.vue'
 import SceneSelector from '../components/biz/SceneSelector.vue'
 import OutfitRecommendSection from '../components/biz/OutfitRecommendSection.vue'
 import ModeTabs from '../components/biz/ModeTabs.vue'
 import RecommendationSection from '../components/biz/RecommendationSection.vue'
 import HomeViewUserLLMHint from '../components/HomeViewUserLLMHint.vue'
+import DailyTipModal from '../components/biz/DailyTipModal.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const userStore = useUserStore()
 const wardrobeStore = useWardrobeStore()
 const recStore = useRecommendationStore()
+const outfitStore = useOutfitStore()
 const { trigger } = useHaptics()
 
 const scenes = [
@@ -120,6 +133,26 @@ const activeTab = ref('outfit') // 'outfit' | 'recommend'
 const selectedScene = ref('casual')
 const outfits = ref([])
 const isLoading = ref(false)
+const dailyTip = ref(null)
+const showDailyTip = ref(false)
+const dailyTipLoading = ref(false)
+
+const dailyTipStorageKey = computed(() => {
+  const userId = authStore.user?.user_id || authStore.user?.id || 'guest'
+  return `l-wardrobe.daily-tip-viewed.${userId}`
+})
+
+const getTodayKey = () => new Date().toISOString().slice(0, 10)
+
+const fallbackDailyTip = {
+  tip_date: getTodayKey(),
+  tip_type: 'color',
+  title: '三色原则降低搭配出错率',
+  content: '全身主色控制在三种以内，会让视觉更干净。新手可以先固定一个基础色，再用一个低饱和颜色制造层次。',
+  example: '白色上衣 + 深蓝下装 + 黑色鞋包',
+  tags: ['配色', '基础法则', '通勤'],
+  generated_by: 'frontend-fallback',
+}
 
 /**
  * AI 搭配区域是否已经被显式触发过。
@@ -139,9 +172,58 @@ onMounted(async () => {
     router.push('/login')
     return
   }
+  await userStore.loadProfileFromBackend()
+  loadDailyTip({ autoOpen: true })
   // 仅加载衣橱数据用于判断可用衣物数量,不再自动生成任何占位搭配
   await wardrobeStore.refreshWardrobe()
 })
+
+const loadDailyTip = async ({ autoOpen = false } = {}) => {
+  if (dailyTipLoading.value) return
+  dailyTipLoading.value = true
+  try {
+    const tip = await fetchDailyTip()
+    dailyTip.value = tip || fallbackDailyTip
+    const today = tip?.tip_date || getTodayKey()
+    const viewedDate = localStorage.getItem(dailyTipStorageKey.value)
+    if (autoOpen && viewedDate !== today) {
+      showDailyTip.value = true
+    }
+  } catch (error) {
+    console.warn('每日贴士加载失败:', error.message)
+    dailyTip.value = fallbackDailyTip
+    if (autoOpen && localStorage.getItem(dailyTipStorageKey.value) !== getTodayKey()) {
+      showDailyTip.value = true
+    }
+  } finally {
+    dailyTipLoading.value = false
+  }
+}
+
+const clearDailyTipButtonFocus = (event) => {
+  event?.currentTarget?.blur?.()
+  if (document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur()
+  }
+}
+
+const openDailyTip = async (event) => {
+  clearDailyTipButtonFocus(event)
+  trigger('light')
+  if (!dailyTip.value) {
+    await loadDailyTip()
+  }
+  if (dailyTip.value) {
+    showDailyTip.value = true
+  }
+}
+
+const closeDailyTip = () => {
+  const today = dailyTip.value?.tip_date || getTodayKey()
+  localStorage.setItem(dailyTipStorageKey.value, today)
+  showDailyTip.value = false
+  clearDailyTipButtonFocus()
+}
 
 /**
  * AI 搭配: 切换场景只更新 selectedScene,不会立刻调用 agent。
@@ -178,11 +260,15 @@ const refreshOutfits = async () => {
   trigger('medium')
   isLoading.value = true
   outfits.value = []
+  outfitStore.setCurrentOutfit(null)
   outfitHasGenerated.value = true
 
-  await new Promise(resolve => setTimeout(resolve, 600))
-  await loadOutfits()
-  isLoading.value = false
+  try {
+    await new Promise(resolve => setTimeout(resolve, 600))
+    await loadOutfits()
+  } finally {
+    isLoading.value = false
+  }
 }
 
 const getSceneChinese = (scene) => {
@@ -213,31 +299,38 @@ const loadOutfits = async () => {
   const wardrobeIds = availableClothes.map(c => c.id)
 
   try {
-    const result = await generateOutfit({ scene: selectedScene.value, wardrobeIds })
+    const result = await generateOutfit({
+      scene: selectedScene.value,
+      wardrobeIds,
+      bodyProfile: userStore.getBodyProfilePayload()
+    })
     outfits.value = (result.outfits || []).map(item => ({ ...item, clothes: availableClothes }))
+    outfitStore.outfits = outfits.value
   } catch (error) {
     console.warn('搭配生成失败,等待用户重试:', error.message)
     outfits.value = []
+    outfitStore.outfits = []
   }
 }
 
-const like = (outfit) => {
+const like = async (outfit) => {
   trigger('success')
-  userStore.likeOutfit(outfit)
-  // 收藏后清空当前结果,等待用户主动刷新;不静默补 mock
-  outfits.value = []
-  outfitHasGenerated.value = false
+  await userStore.likeOutfit(outfit)
+  outfits.value = outfits.value.filter(item => (item.outfitId || item.id) !== (outfit.outfitId || outfit.id))
+  outfitStore.outfits = outfits.value
 }
 
 const dislike = (index) => {
   trigger('light')
-  outfits.value = []
-  outfitHasGenerated.value = false
+  outfits.value = outfits.value.filter((_, i) => i !== index)
+  outfitStore.outfits = outfits.value
 }
 
 const viewDetail = (outfit) => {
   trigger('medium')
-  router.push(`/outfit/${outfit.id}`)
+  outfitStore.setCurrentOutfit(outfit)
+  const id = outfit.outfitId || outfit.id
+  router.push(`/outfit/${id}`)
 }
 
 // ----- AI 推荐 handlers -----
@@ -384,6 +477,54 @@ watch(() => recStore.mode, () => {
   padding: 12px 20px 0;
 }
 
+.daily-tip-fab {
+  position: fixed;
+  right: 18px;
+  bottom: 92px;
+  z-index: 120;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid rgba(29, 29, 31, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--text-primary, #1d1d1f);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.daily-tip-fab:focus,
+.daily-tip-fab:focus-visible {
+  outline: none;
+}
+
+.daily-tip-fab:active {
+  transform: scale(0.97);
+  background: rgba(248, 248, 250, 0.98);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+
+.daily-tip-fab span {
+  font-size: 18px;
+}
+
+.daily-tip-fab strong {
+  font-size: 14px;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .daily-tip-fab {
+    right: 28px;
+    bottom: 28px;
 /* Quick action buttons in header */
 .quick-action {
   display: flex;

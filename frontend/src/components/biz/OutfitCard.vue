@@ -68,8 +68,9 @@ const { trigger } = useHaptics()
 
 const displayItems = computed(() => {
   const items = []
-  const { top, bottom, shoes, accessory } = props.outfit
+  const { top, outerwear, bottom, shoes, accessory } = props.outfit
   if (top) items.push(top)
+  if (outerwear) items.push(outerwear)
   if (bottom) items.push(bottom)
   if (shoes) items.push(shoes)
   if (accessory) items.push(accessory)

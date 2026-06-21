@@ -290,6 +290,8 @@ class StylingAgentService(BaseAgentService):
             "- 如果 get_user_profile 返回 digital_body_profile，必须结合身高、体重、BMI、肤色、体型、风格标签、偏好色/避雷色和版型偏好调整推荐理由"
             "- matchRate 必须是 0-100 的整数"
             "- selectedItems 必须是从衣橱中选出的真实 item_id"
+            "- reason 只能分析 selectedItems 中实际选择的单品；不得提到未放入 selectedItems 的单品、外套、鞋或配饰"
+            "- 如需应对雨天或温差，必须把对应外套/鞋履的真实 item_id 放入 selectedItems，否则不要在 reason 中描述该单品"
             "- 如果衣橱为空或不足，如实说明并在 reason 中解释"
             "最终只输出严格 JSON，不要输出 markdown。字段格式："
             '{"name": string, "description": string, "matchRate": number, "reason": string, "image": string, "selectedItems": array, "weatherSummary": string, "toolSummary": string[], "generatedBy": string}'
@@ -356,6 +358,14 @@ class StylingAgentService(BaseAgentService):
             data = json.loads(content)
             return data if isinstance(data, dict) else {}
         except Exception:
+            start = content.find("{")
+            end = content.rfind("}")
+            if start >= 0 and end > start:
+                try:
+                    data = json.loads(content[start : end + 1])
+                    return data if isinstance(data, dict) else {}
+                except Exception:
+                    return {}
             return {}
 
     def _weather_summary(self, weather: dict) -> str:
