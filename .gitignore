@@ -36,7 +36,9 @@ build/
 
 # IDE
 .idea/
+
 .vscode/
+.trash/
 .claude/
 .agents/
 .codex/

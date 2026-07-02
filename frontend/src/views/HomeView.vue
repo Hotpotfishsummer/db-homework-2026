@@ -35,6 +35,7 @@
           :is-loading="isLoading"
           :outfits="outfits"
           :has-generated="outfitHasGenerated"
+          :wardrobe-too-small="wardrobeTooSmall"
           @refresh="refreshOutfits"
           @like="like"
           @dislike="dislike"
@@ -161,6 +162,14 @@ const fallbackDailyTip = {
  */
 const outfitHasGenerated = ref(false)
 
+// 反映"衣橱里可搭配衣物是否 < 2 件"。< 2 时即使点刷新按钮也会
+// 走到后端兜底逻辑,但展示给用户的空态文案要切换成"先去录入衣物"。
+const wardrobeTooSmall = computed(() => {
+  // 只在衣橱已加载完成且确实为空时返回 true;加载中阶段不应触发。
+  if (wardrobeStore.loading) return false
+  return wardrobeStore.availableClothes.length < 2
+})
+
 const getSceneName = computed(() => {
   const scene = scenes.find(s => s.id === selectedScene.value)
   return scene ? scene.name : '推荐'
@@ -177,10 +186,13 @@ onMounted(async () => {
   // 仅加载衣橱数据用于判断可用衣物数量,不再自动生成任何占位搭配
   await wardrobeStore.refreshWardrobe()
 
-  // 恢复之前的 AI 搭配结果（避免切换页面后数据丢失）
+  // 恢复之前的 AI 搭配结果（避免切换页面后数据丢失）。
+  // 注意: 不要把 hasGenerated 设为 true —— 缓存恢复只用于"重新进入页面
+  // 时把上次结果展示出来",但按钮文案应保持"再来一套",以视觉提示
+  // 这些数据是历史结果,需要重新生成才会调用 AI。避免用户看到 outfit
+  // 觉得"按钮点了没反应"(其实后端根本没被调)。
   if (outfitStore.outfits.length > 0) {
     outfits.value = outfitStore.outfits
-    outfitHasGenerated.value = true
   }
 
   // 恢复之前的 AI 推荐结果
@@ -269,6 +281,7 @@ const onRecSceneChange = (scene) => {
 const refreshOutfits = async () => {
   if (isLoading.value) return
   trigger('medium')
+  console.info('[Outfit] refreshOutfits clicked, scene=', selectedScene.value)
   isLoading.value = true
   outfits.value = []
   outfitStore.setCurrentOutfit(null)
@@ -279,6 +292,7 @@ const refreshOutfits = async () => {
     await loadOutfits()
   } finally {
     isLoading.value = false
+    console.info('[Outfit] refreshOutfits done, outfits.length=', outfits.value.length)
   }
 }
 
@@ -301,13 +315,21 @@ const loadOutfits = async () => {
   const availableClothes = wardrobeStore.availableClothes
   const availableCount = availableClothes.length
 
-  if (availableCount < 2) {
-    // 衣橱不足: 不塞占位卡,留给空态组件渲染
+  // 不再因为衣橱为空/单品不足就跳过请求 —— 后端 LangChain agent
+  // 收到空 wardrobeIds 时会通过 search_wardrobe 工具自行扫描衣橱,
+  // 并在衣橱确实为空时给出"建议补充哪些单品"的回复,体验更好。
+  // 这里只在 wardrobe store 还在加载中时给出空态(避免 UI 闪屏),
+  // 其他情况一律交给后端。
+  if (wardrobeStore.loading) {
     outfits.value = []
     return
   }
 
   const wardrobeIds = availableClothes.map(c => c.id)
+  console.info(
+    '[Outfit] loadOutfits -> calling /api/v1/outfit/recommend',
+    { scene: selectedScene.value, availableCount, wardrobeIdsCount: wardrobeIds.length }
+  )
 
   try {
     const result = await generateOutfit({
