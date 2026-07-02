@@ -68,9 +68,11 @@
           <p class="empty-hint">只有你主动点击后才会调用 AI,不会在切换 tab 时悄悄消耗额度</p>
         </template>
         <template v-else>
-          <span class="empty-icon">😔</span>
-          <p>暂无搭配方案</p>
-          <p class="empty-hint">点击上方「重新生成」再试一次</p>
+          <span class="empty-icon">{{ wardrobeTooSmall ? '👕' : '😔' }}</span>
+          <p v-if="wardrobeTooSmall">衣橱里还没有可搭配的衣物</p>
+          <p v-else>暂无搭配方案</p>
+          <p v-if="wardrobeTooSmall" class="empty-hint">先到「我的衣橱」录入几件单品,AI 就能为你生成专属方案</p>
+          <p v-else class="empty-hint">点击上方「重新生成」再试一次</p>
         </template>
       </div>
     </div>
@@ -102,6 +104,15 @@ const props = defineProps({
    * false → 展示引导空态(首屏 / 切 mode 后的初始态),不展示"暂无数据"。
    */
   hasGenerated: {
+    type: Boolean,
+    default: false
+  },
+  /**
+   * 父级告知"用户当前可用衣物太少(< 2 件)"。
+   * 用于在空态中给出"先去录入衣物"的具体指引,
+   * 避免用户看到"暂无搭配方案"却不知道是衣橱空。
+   */
+  wardrobeTooSmall: {
     type: Boolean,
     default: false
   }
